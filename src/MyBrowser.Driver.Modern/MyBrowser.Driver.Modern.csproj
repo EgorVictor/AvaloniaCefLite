@@ -3,21 +3,26 @@
         <TargetFramework>net8.0</TargetFramework>
         <RootNamespace>MyBrowser.Driver.Modern</RootNamespace>
         <AssemblyName>MyBrowser.Driver.Modern</AssemblyName>
+        <!-- Output to solution-relative bin/Runtimes/Modern -->
+        <OutputPath>$(SolutionDir)bin\$(Configuration)\net8.0\Runtimes\Modern\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Abstractions\MyBrowser.Abstractions.csproj" />
     </ItemGroup>
 
-    <!-- Build target: copy output to Demo's Runtimes folder -->
+    <!-- Verify output directory before build -->
+    <Target Name="VerifyPhysicalIsolation" BeforeTargets="Build">
+        <Message Text="Modern Driver Output: $(OutputPath)" Importance="high"/>
+        <MakeDir Directories="$(OutputPath)" />
+    </Target>
+
+    <!-- Copy driver to Runtimes folder after build -->
     <Target Name="CopyToRuntimes" AfterTargets="PostBuild">
-        <PropertyGroup>
-            <DestDir>$(SolutionDir)..\bin\$(Configuration)\net8.0\Runtimes\Modern</DestDir>
-        </PropertyGroup>
-        <MakeDir Directories="$(DestDir)" />
-        <ItemGroup>
-            <FilesToCopy Include="$(OutputPath)**\*.*" />
-        </ItemGroup>
-        <Copy SourceFiles="@(FilesToCopy)" DestinationFolder="$(DestDir)\%(RecursiveDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="$(TargetPath)" 
+              DestinationFolder="$(OutputPath)" 
+              SkipUnchangedFiles="true" />
+        <Message Text="Modern driver copied to: $(OutputPath)" Importance="high"/>
     </Target>
 </Project>

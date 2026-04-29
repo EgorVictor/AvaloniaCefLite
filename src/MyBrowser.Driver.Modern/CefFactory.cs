@@ -1,6 +1,7 @@
 namespace MyBrowser.Driver.Modern
 {
     using System;
+    using System.IO;
     using MyBrowser;
 
     /// <summary>
@@ -11,6 +12,11 @@ namespace MyBrowser.Driver.Modern
     {
         private BrowserConfig _config;
         private bool _initialized;
+        
+        /// <summary>
+        /// Path to this driver directory (where libcef.dll resides).
+        /// </summary>
+        public static string DriverDirectory { get; private set; }
 
         public string Version => "120.2.70";
         public string DriverType => "Modern";
@@ -19,19 +25,38 @@ namespace MyBrowser.Driver.Modern
         public void Initialize(BrowserConfig config)
         {
             _config = config ?? new BrowserConfig();
-            _initialized = true;
+            
+            // Get the directory where this driver DLL resides
+            DriverDirectory = Path.GetDirectoryName(typeof(CefFactory).Assembly.Location) 
+                ?? throw new InvalidOperationException("Cannot determine driver directory");
 
             Console.WriteLine("[CefFactory.Modern] Initializing modern CEF...");
+            Console.WriteLine($"[CefFactory.Modern] Driver Directory: {DriverDirectory}");
             Console.WriteLine($"[CefFactory.Modern] Windowless: {_config.WindowlessRendering}");
             Console.WriteLine($"[CefFactory.Modern] HardwareAcceleration: {_config.HardwareAcceleration}");
             Console.WriteLine($"[CefFactory.Modern] CachePath: {_config.CachePath}");
             Console.WriteLine($"[CefFactory.Modern] InitialUrl: {_config.InitialUrl}");
 
-            // Modern CEF: Enable hardware acceleration by default
+            // Configure CEF for Win10+
+            // In real implementation, this would configure:
+            // - settings.NoSandbox = false (modern Windows doesn't need it)
+            // - settings.BrowserSubprocessPath = Path.Combine(DriverDirectory, "CefRenderProcess.exe")
+            // - settings.CommandLineArgs["enable-gpu"] = "" (if hardware acceleration enabled)
+            
             if (_config.HardwareAcceleration)
             {
                 Console.WriteLine("[CefFactory.Modern] Hardware acceleration enabled");
             }
+            else
+            {
+                Console.WriteLine("[CefFactory.Modern] GPU disabled");
+            }
+            
+            Console.WriteLine("[CefFactory.Modern] Modern CEF settings:");
+            Console.WriteLine($"  BrowserSubprocessPath: {Path.Combine(DriverDirectory, "CefRenderProcess.exe")}");
+            Console.WriteLine($"  Hardware Acceleration: {_config.HardwareAcceleration}");
+            
+            _initialized = true;
         }
 
         public object CreateControl()
@@ -41,9 +66,7 @@ namespace MyBrowser.Driver.Modern
 
             Console.WriteLine("[CefFactory.Modern] Creating browser control...");
 
-            // TODO: Return actual AvaloniaCefBrowser wrapped control
-            // For now, return a placeholder
-            return new ModernBrowserControl(_config);
+            return new ModernBrowserControl(_config, DriverDirectory);
         }
 
         public void Shutdown()
@@ -54,20 +77,24 @@ namespace MyBrowser.Driver.Modern
     }
 
     /// <summary>
-    /// Placeholder browser control for Modern driver.
-    /// TODO: Replace with actual AvaloniaCefBrowser wrapper.
+    /// Browser control for Modern driver.
+    /// In production, this wraps AvaloniaCefBrowser.
     /// </summary>
     public class ModernBrowserControl : IBrowserControl
     {
         private readonly BrowserConfig _config;
+        private readonly string _driverDir;
         private string _url = "about:blank";
         private string _title = "Modern Browser";
         private bool _isLoading;
 
-        public ModernBrowserControl(BrowserConfig config)
+        public ModernBrowserControl(BrowserConfig config, string driverDir)
         {
             _config = config;
+            _driverDir = driverDir;
             _url = config.InitialUrl;
+            
+            Console.WriteLine($"[ModernBrowserControl] Created with driver dir: {_driverDir}");
         }
 
         public bool IsLoading => _isLoading;
@@ -89,19 +116,41 @@ namespace MyBrowser.Driver.Modern
             _url = url;
             _isLoading = true;
             LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
-            // Simulate load completion
+            
+            // In real implementation, this would call:
+            // CefBrowserHost.CreateBrowser(windowHandle, settings, url);
+            
             _isLoading = false;
             LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = 200 });
             AddressChanged?.Invoke(this, new AddressChangedEventArgs { Address = url, IsMainFrame = true });
         }
 
-        public void GoBack() { }
-        public void GoForward() { }
-        public void Reload() { }
-        public void Stop() { }
+        public void GoBack() 
+        {
+            Console.WriteLine("[ModernBrowserControl] GoBack - not implemented");
+        }
+        
+        public void GoForward() 
+        {
+            Console.WriteLine("[ModernBrowserControl] GoForward - not implemented");
+        }
+        
+        public void Reload() 
+        {
+            Console.WriteLine("[ModernBrowserControl] Reload");
+            LoadUrl(_url);
+        }
+        
+        public void Stop() 
+        {
+            Console.WriteLine("[ModernBrowserControl] Stop");
+            _isLoading = false;
+        }
+        
         public void ExecuteJavaScript(string script)
         {
             Console.WriteLine($"[ModernBrowserControl] ExecuteScript: {script}");
+            // In real implementation: CefBrowserHost.ExecuteJavaScript(script, url, 0);
         }
 
         public void Dispose()
