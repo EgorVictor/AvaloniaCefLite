@@ -7,6 +7,9 @@ namespace MyBrowser.Demo
     using Avalonia.Interactivity;
     using MyBrowser;
 
+    /// <summary>
+    /// 主窗口
+    /// </summary>
     public partial class MainWindow : Window
     {
         private IBrowserFactory _factory;
@@ -17,48 +20,56 @@ namespace MyBrowser.Demo
             InitializeComponent();
         }
 
+        /// <summary>
+        /// 设置浏览器工厂
+        /// </summary>
         public void SetFactory(IBrowserFactory factory)
         {
             _factory = factory;
             CreateBrowserControl();
         }
 
+        /// <summary>
+        /// 创建浏览器控件
+        /// </summary>
         private void CreateBrowserControl()
         {
             if (_factory == null) return;
 
-            // Create browser control from factory
+            // 从工厂创建浏览器控件
             var control = _factory.CreateControl();
             _browser = control as IBrowserControl;
 
             if (_browser == null && control != null)
             {
-                // If control is not IBrowserControl, wrap it
-                Console.WriteLine($"[MainWindow] Created control: {control.GetType().Name}");
+                Console.WriteLine($"[MainWindow] 已创建控件: {control.GetType().Name}");
             }
 
-            // Subscribe to events
+            // 订阅事件
             if (_browser != null)
             {
                 _browser.TitleChanged += (s, e) => Title = e.Title ?? "MyBrowser";
                 _browser.AddressChanged += (s, e) => UrlTextBox.Text = e.Address;
-                _browser.LoadStart += (s, e) => Console.WriteLine("[MainWindow] Load started");
-                _browser.LoadEnd += (s, e) => Console.WriteLine($"[MainWindow] Load ended: {e.HttpStatusCode}");
+                _browser.LoadStart += (s, e) => Console.WriteLine("[MainWindow] 开始加载");
+                _browser.LoadEnd += (s, e) => Console.WriteLine($"[MainWindow] 加载结束: {e.HttpStatusCode}");
 
-                // Load initial URL
+                // 加载初始URL
                 _browser.LoadUrl("https://www.google.com");
             }
 
-            // Create tab with browser
+            // 创建标签页
             var tab = new TabItem
             {
-                Header = "New Tab",
+                Header = "新标签",
                 Content = new BrowserView(_browser)
             };
             Tabs.Items.Add(tab);
             Tabs.SelectedItem = tab;
         }
 
+        /// <summary>
+        /// 创建新标签页
+        /// </summary>
         private void CreateNewTab()
         {
             if (_factory == null) return;
@@ -68,7 +79,7 @@ namespace MyBrowser.Demo
 
             var tab = new TabItem
             {
-                Header = "New Tab",
+                Header = "新标签",
                 Content = new BrowserView(browser)
             };
 
@@ -76,7 +87,7 @@ namespace MyBrowser.Demo
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    tab.Header = e.Title ?? "Tab";
+                    tab.Header = e.Title ?? "标签";
                 });
             };
 
@@ -109,7 +120,7 @@ namespace MyBrowser.Demo
     }
 
     /// <summary>
-    /// Browser view wrapper for Avalonia.
+    /// 浏览器视图包装器
     /// </summary>
     public class BrowserView : StackPanel
     {
@@ -124,7 +135,7 @@ namespace MyBrowser.Demo
             {
                 _placeholder = new TextBlock
                 {
-                    Text = "No browser control",
+                    Text = "无浏览器控件",
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
                 };
@@ -132,11 +143,11 @@ namespace MyBrowser.Demo
             }
             else
             {
-                // TODO: Add actual browser control here
-                // For now, show status
+                // TODO: 在此处添加实际的浏览器控件
+                // 目前显示状态信息
                 _placeholder = new TextBlock
                 {
-                    Text = $"Browser: {_browser.GetType().Name}",
+                    Text = $"浏览器: {_browser.GetType().Name}",
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
                 };

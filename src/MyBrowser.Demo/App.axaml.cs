@@ -4,6 +4,9 @@ namespace MyBrowser.Demo
     using Avalonia.Controls.ApplicationLifetimes;
     using Avalonia.Controls;
 
+    /// <summary>
+    /// Avalonia应用程序入口
+    /// </summary>
     public partial class App : Application
     {
         public override void OnFrameworkInitializationCompleted()
@@ -12,13 +15,16 @@ namespace MyBrowser.Demo
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // Boot dispatcher FIRST
+                // 第一步：启动调度器（在任何UI之前）
                 var factory = CefDispatcher.Boot();
+                
+                // 第二步：初始化配置
                 factory.Initialize(new BrowserConfig
                 {
                     InitialUrl = "https://www.google.com"
                 });
 
+                // 第三步：创建主窗口
                 var window = new MainWindow();
                 window.SetFactory(factory);
 
