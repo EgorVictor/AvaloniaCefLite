@@ -14,5 +14,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Dispatcher\MyBrowser.Dispatcher.csproj" />
+        <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
     </ItemGroup>
 </Project>

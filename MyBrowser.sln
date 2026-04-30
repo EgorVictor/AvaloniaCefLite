@@ -13,8 +13,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyBrowser.Driver.Modern", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyBrowser.Demo", "src\MyBrowser.Demo\MyBrowser.Demo.csproj", "{55555555-5555-5555-5555-555555555555}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyBrowser.Interop", "src\MyBrowser.Interop\MyBrowser.Interop.csproj", "{E8637655-F6BB-42A2-AF81-97302610A77A}"
 EndProject
 Global
@@ -102,9 +100,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{E8637655-F6BB-42A2-AF81-97302610A77A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {96B63520-971B-46A5-A508-A14665190893}

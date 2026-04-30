@@ -1,6 +1,7 @@
 namespace MyBrowser.Interop
 {
     using System;
+    using System.IO;
     using System.Runtime.InteropServices;
     using MyBrowser.Interop.Internal;
 
@@ -13,8 +14,10 @@ namespace MyBrowser.Interop
         private CefClient _client;
         private CefBrowserSettings _settings;
         private bool _initialized;
+        private IntPtr _browserHostHandle;
 
         public IntPtr BrowserHandle { get; private set; }
+        public IntPtr BrowserHostHandle => _browserHostHandle;
         public bool IsInitialized => _initialized;
 
         public CefBrowserFactory()
@@ -35,6 +38,7 @@ namespace MyBrowser.Interop
             // Initialize browser settings
             _settings = CreateDefaultSettings();
             _initialized = false;
+            _browserHostHandle = IntPtr.Zero;
         }
 
         /// <summary>
@@ -42,12 +46,13 @@ namespace MyBrowser.Interop
         /// </summary>
         public bool CreateBrowser(IntPtr parentHwnd, string initialUrl, out IntPtr browserHandle)
         {
-            System.Diagnostics.Debug.WriteLine($"[CefBrowserFactory] CreateBrowser: URL={initialUrl}, ParentHWND={parentHwnd}");
+            Logger.Log("[CefBrowserFactory] CreateBrowser: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
             browserHandle = IntPtr.Zero;
+            _browserHostHandle = IntPtr.Zero;
 
             if (!CefRuntime.IsInitialized)
             {
-                System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] CEF not initialized!");
+                Logger.Log("[CefBrowserFactory] CEF not initialized!");
                 return false;
             }
 
@@ -77,8 +82,8 @@ namespace MyBrowser.Interop
                 fixed (CefClient* clientPtr = &_client)
                 fixed (CefBrowserSettings* settingsPtr = &_settings)
                 {
-                    System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
-                    
+                    Logger.Log("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
+
                     var result = CefNative.CefBrowserHost_CreateBrowser(
                         &windowInfo,
                         clientPtr,
@@ -87,23 +92,23 @@ namespace MyBrowser.Interop
                         IntPtr.Zero,
                         IntPtr.Zero);
 
-                    System.Diagnostics.Debug.WriteLine($"[CefBrowserFactory] Result: {result}");
+                    Logger.Log("[CefBrowserFactory] Result: {Result}", result);
 
                     if (result != 0)
                     {
                         _initialized = true;
-                        System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] Browser created successfully");
+                        Logger.Log("[CefBrowserFactory] Browser created successfully");
                         return true;
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] FAILED to create browser!");
+                Logger.Log("[CefBrowserFactory] FAILED to create browser!");
                 return false;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[CefBrowserFactory] Exception: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+                Logger.Log("[CefBrowserFactory] Exception: {Message}", ex.Message);
+                Logger.Log("[CefBrowserFactory] StackTrace: {StackTrace}", ex.StackTrace);
                 return false;
             }
             finally
@@ -120,20 +125,25 @@ namespace MyBrowser.Interop
         /// </summary>
         public bool CreateBrowserSync(IntPtr parentHwnd, string initialUrl, out IntPtr browserHandle)
         {
-            System.Diagnostics.Debug.WriteLine($"[CefBrowserFactory] CreateBrowserSync: URL={initialUrl}");
+            Logger.Log("[CefBrowserFactory] CreateBrowserSync: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
             browserHandle = IntPtr.Zero;
+            _browserHostHandle = IntPtr.Zero;
 
             if (!CefRuntime.IsInitialized)
             {
-                System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] CEF not initialized!");
+                Logger.Log("[CefBrowserFactory] CEF not initialized!");
                 return false;
             }
 
+            // 使用 WS_CHILD 样式将浏览器嵌入父窗口
+            // 参考 CefGlue: style = WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
             var windowInfo = new CefWindowInfo
             {
                 size = (UIntPtr)sizeof(CefWindowInfo),
                 parent_window = parentHwnd,
-                bounds = new CefRect { width = 1024, height = 768 }
+                bounds = new CefRect { x = 0, y = 0, width = 1024, height = 768 },
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00090000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
+                ex_style = 0
             };
 
             var url = new CefString();
@@ -160,18 +170,130 @@ namespace MyBrowser.Interop
                     if (browserPtr != IntPtr.Zero)
                     {
                         browserHandle = browserPtr;
+                        // 从 browser 获取 host 指针
+                        _browserHostHandle = CefNative.CefBrowser_GetHost(browserPtr);
                         _initialized = true;
-                        System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] Browser created (sync) OK");
+                        Logger.Log("[CefBrowserFactory] Browser created (sync) OK, BrowserHost: {HostHandle}", _browserHostHandle);
                         return true;
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine("[CefBrowserFactory] Sync create FAILED!");
+                Logger.Log("[CefBrowserFactory] Sync create FAILED!");
                 return false;
             }
             finally
             {
                 if (url.str != null) Marshal.FreeHGlobal((IntPtr)url.str);
+            }
+        }
+
+        /// <summary>
+        /// 后退
+        /// </summary>
+        public void GoBack()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_GoBack(_browserHostHandle);
+            }
+        }
+
+        /// <summary>
+        /// 前进
+        /// </summary>
+        public void GoForward()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_GoForward(_browserHostHandle);
+            }
+        }
+
+        /// <summary>
+        /// 重新加载
+        /// </summary>
+        public void Reload()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_Reload(_browserHostHandle);
+            }
+        }
+
+        /// <summary>
+        /// 重新加载（忽略缓存）
+        /// </summary>
+        public void ReloadIgnoreCache()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_ReloadIgnoreCache(_browserHostHandle);
+            }
+        }
+
+        /// <summary>
+        /// 停止加载
+        /// </summary>
+        public void StopLoad()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_StopLoad(_browserHostHandle);
+            }
+        }
+
+        /// <summary>
+        /// 执行 JavaScript
+        /// </summary>
+        public void ExecuteJavaScript(string code, string url = "", int line = 0)
+        {
+            if (_browserHostHandle != IntPtr.Zero && !string.IsNullOrEmpty(code))
+            {
+                var codeStr = Marshal.StringToHGlobalUni(code + "\0");
+                var urlStr = string.IsNullOrEmpty(url) ? IntPtr.Zero : Marshal.StringToHGlobalUni(url + "\0");
+
+                var cefCode = new CefString
+                {
+                    str = (char*)codeStr,
+                    length = (UIntPtr)code.Length,
+                    dtor = IntPtr.Zero
+                };
+
+                var cefUrl = new CefString();
+                if (urlStr != IntPtr.Zero)
+                {
+                    cefUrl.str = (char*)urlStr;
+                    cefUrl.length = (UIntPtr)url.Length;
+                    cefUrl.dtor = IntPtr.Zero;
+                }
+
+                CefNative.CefBrowserHost_ExecuteJavaScript(_browserHostHandle, &cefCode, &cefUrl, line);
+
+                Marshal.FreeHGlobal(codeStr);
+                if (urlStr != IntPtr.Zero) Marshal.FreeHGlobal(urlStr);
+            }
+        }
+
+        /// <summary>
+        /// 检查是否正在加载
+        /// </summary>
+        public bool IsLoading()
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                return CefNative.CefBrowserHost_IsLoading(_browserHostHandle) != 0;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 关闭浏览器
+        /// </summary>
+        public void CloseBrowser(bool forceClose = false)
+        {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CefNative.CefBrowserHost_CloseBrowser(_browserHostHandle, forceClose ? 1 : 0);
             }
         }
 
@@ -193,6 +315,11 @@ namespace MyBrowser.Interop
 
         public void Dispose()
         {
+            if (_browserHostHandle != IntPtr.Zero)
+            {
+                CloseBrowser(true);
+            }
+            _browserHostHandle = IntPtr.Zero;
             _initialized = false;
         }
     }

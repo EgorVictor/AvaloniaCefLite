@@ -35,12 +35,12 @@ namespace MyBrowser.Interop
         {
             if (_initialized)
             {
-                System.Diagnostics.Debug.WriteLine("[CefRuntime] Already initialized");
+                Logger.Log("[CefRuntime] Already initialized");
                 return true;
             }
 
-            System.Diagnostics.Debug.WriteLine("[CefRuntime] Initializing CEF...");
-            System.Diagnostics.Debug.WriteLine($"[CefRuntime] sizeof(CefSettings) = {sizeof(CefSettings)}");
+            Logger.Log("[CefRuntime] Initializing CEF...");
+            Logger.Log("[CefRuntime] sizeof(CefSettings) = {0}", sizeof(CefSettings));
 
             // Initialize ALL fields of CefSettings to proper values
             var settings = new CefSettings
@@ -71,23 +71,23 @@ namespace MyBrowser.Interop
 
             var args = new CefMainArgs { Instance = instanceHandle };
 
-            System.Diagnostics.Debug.WriteLine($"[CefRuntime] Calling cef_initialize...");
-            System.Diagnostics.Debug.WriteLine($"[CefRuntime] settings.size = {settings.size}");
-            System.Diagnostics.Debug.WriteLine($"[CefRuntime] settings.no_sandbox = {settings.no_sandbox}");
+            Logger.Log("[CefRuntime] Calling cef_initialize...");
+            Logger.Log("[CefRuntime] settings.size = {0}", settings.size);
+            Logger.Log("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
 
             // Pass NULL for app - it's optional and we don't have proper callbacks
             // For unmanaged structs, we can take address directly without 'fixed'
             int result = CefNative.CefInitialize(&args, &settings, null, IntPtr.Zero);
-            System.Diagnostics.Debug.WriteLine($"[CefRuntime] cef_initialize returned: {result}");
+            Logger.Log("[CefRuntime] cef_initialize returned: {0}", result);
 
             if (result != 0)
             {
                 _initialized = true;
-                System.Diagnostics.Debug.WriteLine("[CefRuntime] CEF initialized OK");
+                Logger.Log("[CefRuntime] CEF initialized OK");
                 return true;
             }
 
-            System.Diagnostics.Debug.WriteLine("[CefRuntime] CEF initialization FAILED!");
+            Logger.Log("[CefRuntime] CEF initialization FAILED!");
             return false;
         }
 
@@ -98,10 +98,10 @@ namespace MyBrowser.Interop
         {
             if (!_initialized || _shutdown) return;
 
-            System.Diagnostics.Debug.WriteLine("[CefRuntime] Shutting down CEF...");
+            Logger.Log("[CefRuntime] Shutting down CEF...");
             CefNative.CefShutdown();
             _shutdown = true;
-            System.Diagnostics.Debug.WriteLine("[CefRuntime] CEF shut down");
+            Logger.Log("[CefRuntime] CEF shut down");
         }
 
         /// <summary>

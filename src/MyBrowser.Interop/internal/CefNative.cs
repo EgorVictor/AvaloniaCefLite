@@ -73,5 +73,43 @@ namespace MyBrowser.Interop.Internal
             IntPtr requestContext);
 
         #endregion
+
+        #region BrowserHost Functions
+
+        [DllImport(DllName, EntryPoint = "cef_browser_get_host")]
+        public static extern IntPtr CefBrowser_GetHost(IntPtr browser);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_set_focus")]
+        public static extern void CefBrowserHost_SetFocus(IntPtr host, int enable);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_close_browser")]
+        public static extern void CefBrowserHost_CloseBrowser(IntPtr host, int forceClose);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_go_back")]
+        public static extern void CefBrowserHost_GoBack(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_go_forward")]
+        public static extern void CefBrowserHost_GoForward(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_is_loading")]
+        public static extern int CefBrowserHost_IsLoading(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_reload")]
+        public static extern void CefBrowserHost_Reload(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_reload_ignore_cache")]
+        public static extern void CefBrowserHost_ReloadIgnoreCache(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_stop_load")]
+        public static extern void CefBrowserHost_StopLoad(IntPtr host);
+
+        [DllImport(DllName, EntryPoint = "cef_browser_host_execute_javascript")]
+        public static extern void CefBrowserHost_ExecuteJavaScript(
+            IntPtr host,
+            CefString* code,
+            CefString* url,
+            int line);
+
+        #endregion
     }
 }

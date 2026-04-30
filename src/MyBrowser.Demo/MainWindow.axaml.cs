@@ -5,7 +5,9 @@ namespace MyBrowser.Demo
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
+    using Avalonia.Platform;
     using MyBrowser;
+    using MyBrowser.Interop;
 
     /// <summary>
     /// 主窗口
@@ -42,16 +44,16 @@ namespace MyBrowser.Demo
 
             if (_browser == null && control != null)
             {
-                Console.WriteLine($"[MainWindow] 已创建控件: {control.GetType().Name}");
+                Logger.Log($"[MainWindow] 已创建控件: {control.GetType().Name}");
             }
 
-            // 订阅事件
+                // 订阅事件
             if (_browser != null)
             {
                 _browser.TitleChanged += (s, e) => Title = e.Title ?? "MyBrowser";
                 _browser.AddressChanged += (s, e) => UrlTextBox.Text = e.Address;
-                _browser.LoadStart += (s, e) => Console.WriteLine("[MainWindow] 开始加载");
-                _browser.LoadEnd += (s, e) => Console.WriteLine($"[MainWindow] 加载结束: {e.HttpStatusCode}");
+                _browser.LoadStart += (s, e) => Logger.Log("[MainWindow] 开始加载");
+                _browser.LoadEnd += (s, e) => Logger.Log($"[MainWindow] 加载结束: {e.HttpStatusCode}");
 
                 // 加载初始URL
                 _browser.LoadUrl("https://www.google.com");
@@ -61,7 +63,7 @@ namespace MyBrowser.Demo
             var tab = new TabItem
             {
                 Header = "新标签",
-                Content = new BrowserView(_browser)
+                Content = new BrowserView(_browser, this)
             };
             Tabs.Items.Add(tab);
             Tabs.SelectedItem = tab;
@@ -80,7 +82,7 @@ namespace MyBrowser.Demo
             var tab = new TabItem
             {
                 Header = "新标签",
-                Content = new BrowserView(browser)
+                Content = new BrowserView(browser, this)
             };
 
             browser.TitleChanged += (s, e) =>
@@ -126,10 +128,12 @@ namespace MyBrowser.Demo
     {
         private readonly IBrowserControl? _browser;
         private readonly TextBlock _placeholder;
+        private readonly Window _parentWindow;
 
-        public BrowserView(IBrowserControl? browser)
+        public BrowserView(IBrowserControl? browser, Window parentWindow)
         {
             _browser = browser;
+            _parentWindow = parentWindow;
 
             if (_browser == null)
             {
@@ -152,7 +156,50 @@ namespace MyBrowser.Demo
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
                 };
                 Children.Add(_placeholder);
+
+                // 获取原生窗口句柄并传递给浏览器控件
+                // 这应该在布局完成后再调用
+                Loaded += OnLoaded;
             }
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            // 获取原生 HWND 并传递给浏览器控件
+            if (_browser != null && _parentWindow != null)
+            {
+                var hwnd = GetNativeWindowHandle(_parentWindow);
+                if (hwnd != IntPtr.Zero)
+                {
+                    Logger.Log($"[BrowserView] 获取到原生HWND: {hwnd}");
+
+                    // 如果浏览器控件有 SetWindowHandle 方法，则调用它
+                    var setHandleMethod = _browser.GetType().GetMethod("SetWindowHandle");
+                    setHandleMethod?.Invoke(_browser, new object[] { hwnd });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 获取 Avalonia 窗口的原生 HWND
+        /// </summary>
+        private IntPtr GetNativeWindowHandle(Window window)
+        {
+            try
+            {
+                // 使用 Avalonia 的平台特定接口获取原生句柄
+                var platformHandle = window.TryGetPlatformHandle();
+                if (platformHandle != null)
+                {
+                    Logger.Log($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
+                    return platformHandle.Handle;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[BrowserView] 获取HWND失败: {ex.Message}");
+            }
+            return IntPtr.Zero;
         }
 
         public void LoadUrl(string url) => _browser?.LoadUrl(url);
