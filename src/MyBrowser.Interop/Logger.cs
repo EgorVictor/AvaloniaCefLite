@@ -2,6 +2,7 @@ namespace MyBrowser.Interop
 {
     using System;
     using System.IO;
+    using Serilog;
 
     /// <summary>
     /// 统一日志助手
@@ -10,6 +11,7 @@ namespace MyBrowser.Interop
     public static class Logger
     {
         private static readonly string _logFile = @"F:\mybrowser.log";
+        private static readonly ILogger _log;
         private static readonly object _lock = new object();
 
         static Logger()
@@ -26,6 +28,12 @@ namespace MyBrowser.Interop
             {
                 // 忽略删除失败
             }
+
+            // 使用 Serilog
+            _log = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] {Message}\n")
+                .CreateLogger();
         }
 
         /// <summary>
@@ -33,18 +41,9 @@ namespace MyBrowser.Interop
         /// </summary>
         public static void Log(string msg)
         {
-            try
+            lock (_lock)
             {
-                var s = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {msg}";
-                System.Diagnostics.Debug.WriteLine(s);
-                lock (_lock)
-                {
-                    File.AppendAllText(_logFile, s + "\r\n");
-                }
-            }
-            catch
-            {
-                // 忽略日志写入失败
+                _log.Information(msg);
             }
         }
 
@@ -53,7 +52,10 @@ namespace MyBrowser.Interop
         /// </summary>
         public static void Log(string fmt, params object[] args)
         {
-            Log(string.Format(fmt, args));
+            lock (_lock)
+            {
+                _log.Information(fmt, args);
+            }
         }
 
         /// <summary>
@@ -61,13 +63,16 @@ namespace MyBrowser.Interop
         /// </summary>
         public static void Error(string msg, Exception ex = null)
         {
-            if (ex != null)
+            lock (_lock)
             {
-                Log($"[ERROR] {msg}: {ex.Message}\n{ex.StackTrace}");
-            }
-            else
-            {
-                Log($"[ERROR] {msg}");
+                if (ex != null)
+                {
+                    _log.Error(ex, msg);
+                }
+                else
+                {
+                    _log.Error(msg);
+                }
             }
         }
     }
