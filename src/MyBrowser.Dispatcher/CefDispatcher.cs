@@ -79,62 +79,62 @@ namespace MyBrowser
             DriverName = isLegacy ? "Legacy" : "Modern";
             DriverPath = Path.Combine(AppContext.BaseDirectory, "Runtimes", DriverName);
 
-            Console.WriteLine("===========================================");
-            Console.WriteLine("[CefDispatcher] 浏览器驱动调度器");
-            Console.WriteLine("===========================================");
-            Console.WriteLine($"[CefDispatcher] 操作系统版本: {osVersion}");
-            Console.WriteLine($"[CefDispatcher] 操作系统主版本号: {osVersion.Major}");
-            Console.WriteLine($"[CefDispatcher] 选择的驱动: {DriverName}");
-            Console.WriteLine($"[CefDispatcher] 驱动路径: {DriverPath}");
+            System.Diagnostics.Debug.WriteLine("===========================================");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 浏览器驱动调度器");
+            System.Diagnostics.Debug.WriteLine("===========================================");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher] 操作系统版本: {osVersion}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher] 操作系统主版本号: {osVersion.Major}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher] 选择的驱动: {DriverName}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher] 驱动路径: {DriverPath}");
 
             // 2. SetDllDirectory - 原生DLL搜索路径劫持
             // 这对libcef.dll的加载至关重要
-            Console.WriteLine("[CefDispatcher] 步骤1: SetDllDirectory()");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤1: SetDllDirectory()");
             if (!string.IsNullOrEmpty(DriverPath) && Directory.Exists(DriverPath))
             {
                 bool result = SetDllDirectory(DriverPath);
-                Console.WriteLine($"[CefDispatcher]   SetDllDirectory({DriverPath}) = {result}");
+                System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   SetDllDirectory({DriverPath}) = {result}");
                 if (!result)
                 {
                     int error = Marshal.GetLastWin32Error();
-                    Console.WriteLine($"[CefDispatcher]   警告: SetDllDirectory失败, error={error}");
+                    System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   警告: SetDllDirectory失败, error={error}");
                 }
             }
             else
             {
-                Console.WriteLine($"[CefDispatcher]   警告: 驱动路径不存在: {DriverPath}");
-                Console.WriteLine($"[CefDispatcher]   将使用备用路径发现...");
+                System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   警告: 驱动路径不存在: {DriverPath}");
+                System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   将使用备用路径发现...");
             }
 
             // 3. 挂载AssemblyResolve - 托管DLL搜索路径劫持
             // 这对CefGlue.dll的加载至关重要
-            Console.WriteLine("[CefDispatcher] 步骤2: 挂载AssemblyResolve");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤2: 挂载AssemblyResolve");
             AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
-            Console.WriteLine("[CefDispatcher]   AssemblyResolve处理器已注册");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher]   AssemblyResolve处理器已注册");
 
             // 4. 查找驱动DLL路径
-            Console.WriteLine("[CefDispatcher] 步骤3: 定位驱动DLL");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤3: 定位驱动DLL");
             string driverDllName = $"MyBrowser.Driver.{DriverName}.dll";
             string driverDllPath = FindDriverDll(DriverPath, driverDllName);
 
-            Console.WriteLine($"[CefDispatcher]   驱动DLL: {driverDllPath}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   驱动DLL: {driverDllPath}");
 
             // 5. 通过反射加载驱动程序集
-            Console.WriteLine("[CefDispatcher] 步骤4: 加载驱动程序集");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤4: 加载驱动程序集");
             var assembly = Assembly.LoadFrom(driverDllPath);
-            Console.WriteLine($"[CefDispatcher]   程序集已加载: {assembly.FullName}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   程序集已加载: {assembly.FullName}");
 
             // 6. 查找IBrowserFactory实现
-            Console.WriteLine("[CefDispatcher] 步骤5: 查找IBrowserFactory");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤5: 查找IBrowserFactory");
             Type factoryType = FindFactoryType(assembly);
 
-            Console.WriteLine($"[CefDispatcher]   工厂类型: {factoryType.FullName}");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   工厂类型: {factoryType.FullName}");
 
             // 7. 创建工厂实例
-            Console.WriteLine("[CefDispatcher] 步骤6: 创建工厂实例");
+            System.Diagnostics.Debug.WriteLine("[CefDispatcher] 步骤6: 创建工厂实例");
             _factory = (IBrowserFactory)Activator.CreateInstance(factoryType);
-            Console.WriteLine($"[CefDispatcher]   工厂已创建: {_factory.GetType().Name}");
-            Console.WriteLine("===========================================");
+            System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   工厂已创建: {_factory.GetType().Name}");
+            System.Diagnostics.Debug.WriteLine("===========================================");
 
             return _factory;
         }
@@ -162,11 +162,11 @@ namespace MyBrowser
             foreach (var fallback in fallbackPaths)
             {
                 var testPath = Path.Combine(fallback, dllName);
-                Console.WriteLine($"[CefDispatcher]   尝试: {testPath}");
+                System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   尝试: {testPath}");
                 if (File.Exists(testPath))
                 {
                     DriverPath = fallback;
-                    Console.WriteLine($"[CefDispatcher]   已找到! 更新DriverPath为: {fallback}");
+                    System.Diagnostics.Debug.WriteLine($"[CefDispatcher]   已找到! 更新DriverPath为: {fallback}");
                     return testPath;
                 }
             }
@@ -213,16 +213,16 @@ namespace MyBrowser
             string dllName = assemblyName.Name + ".dll";
             string dllPath = Path.Combine(DriverPath, dllName);
 
-            Console.WriteLine($"[AssemblyResolve] 正在解析: {assemblyName.Name}");
-            Console.WriteLine($"[AssemblyResolve]   在以下路径查找: {DriverPath}");
+            System.Diagnostics.Debug.WriteLine($"[AssemblyResolve] 正在解析: {assemblyName.Name}");
+            System.Diagnostics.Debug.WriteLine($"[AssemblyResolve]   在以下路径查找: {DriverPath}");
 
             if (File.Exists(dllPath))
             {
-                Console.WriteLine($"[AssemblyResolve]   已找到: {dllPath}");
+                System.Diagnostics.Debug.WriteLine($"[AssemblyResolve]   已找到: {dllPath}");
                 return Assembly.LoadFrom(dllPath);
             }
 
-            Console.WriteLine($"[AssemblyResolve]   未找到");
+            System.Diagnostics.Debug.WriteLine($"[AssemblyResolve]   未找到");
             return null;
         }
     }

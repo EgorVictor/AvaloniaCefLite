@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Abstractions\MyBrowser.Abstractions.csproj" />
+        <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
     </ItemGroup>
 
     <!-- 构建前验证输出目录 -->

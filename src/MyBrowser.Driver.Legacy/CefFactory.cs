@@ -30,30 +30,30 @@ namespace MyBrowser.Driver.Legacy
             DriverDirectory = Path.GetDirectoryName(typeof(CefFactory).Assembly.Location) 
                 ?? throw new InvalidOperationException("无法确定驱动目录");
 
-            Console.WriteLine("[CefFactory.Legacy] 正在初始化CEF 109...");
-            Console.WriteLine($"[CefFactory.Legacy] 驱动目录: {DriverDirectory}");
-            Console.WriteLine($"[CefFactory.Legacy] 无窗口模式: {_config.WindowlessRendering}");
-            Console.WriteLine($"[CefFactory.Legacy] 硬件加速: {_config.HardwareAcceleration}");
-            Console.WriteLine($"[CefFactory.Legacy] 缓存路径: {_config.CachePath}");
-            Console.WriteLine($"[CefFactory.Legacy] 初始URL: {_config.InitialUrl}");
+            System.Diagnostics.Debug.WriteLine("[CefFactory.Legacy] 正在初始化CEF 109...");
+            System.Diagnostics.Debug.WriteLine($"[CefFactory.Legacy] 驱动目录: {DriverDirectory}");
+            System.Diagnostics.Debug.WriteLine($"[CefFactory.Legacy] 无窗口模式: {_config.WindowlessRendering}");
+            System.Diagnostics.Debug.WriteLine($"[CefFactory.Legacy] 硬件加速: {_config.HardwareAcceleration}");
+            System.Diagnostics.Debug.WriteLine($"[CefFactory.Legacy] 缓存路径: {_config.CachePath}");
+            System.Diagnostics.Debug.WriteLine($"[CefFactory.Legacy] 初始URL: {_config.InitialUrl}");
 
-            // 为Win7配置CEF
-            // 实际实现中需要配置:
+            // Win7 配置：禁用 GPU 和沙箱
+            // 实际实现中需要配置 CefSettings:
             // - settings.NoSandbox = true
-            // - settings.BrowserSubprocessPath = Path.Combine(DriverDirectory, "CefRenderProcess.exe")
+            // - settings.BrowserSubprocessPath = 子进程路径
             // - settings.CommandLineArgs["disable-gpu"] = ""
             // - settings.CommandLineArgs["disable-software-rasterizer"] = ""
             
             if (!_config.HardwareAcceleration)
             {
-                Console.WriteLine("[CefFactory.Legacy] GPU已禁用(Win7模式)");
+                System.Diagnostics.Debug.WriteLine("[CefFactory.Legacy] GPU已禁用(Win7模式)");
             }
             
-            Console.WriteLine("[CefFactory.Legacy] CEF 109配置:");
-            Console.WriteLine($"  --no-sandbox");
-            Console.WriteLine($"  --disable-gpu");
-            Console.WriteLine($"  --disable-software-rasterizer");
-            Console.WriteLine($"  BrowserSubprocessPath: {Path.Combine(DriverDirectory, "CefRenderProcess.exe")}");
+            System.Diagnostics.Debug.WriteLine("[CefFactory.Legacy] CEF 109配置:");
+            System.Diagnostics.Debug.WriteLine($"  --no-sandbox");
+            System.Diagnostics.Debug.WriteLine($"  --disable-gpu");
+            System.Diagnostics.Debug.WriteLine($"  --disable-software-rasterizer");
+            System.Diagnostics.Debug.WriteLine($"  BrowserSubprocessPath: {Path.Combine(DriverDirectory, "CefRenderProcess.exe")}");
             
             _initialized = true;
         }
@@ -63,21 +63,28 @@ namespace MyBrowser.Driver.Legacy
             if (!_initialized)
                 throw new InvalidOperationException("工厂未初始化。请先调用Initialize()方法。");
 
-            Console.WriteLine("[CefFactory.Legacy] 正在创建浏览器控件...");
+            System.Diagnostics.Debug.WriteLine("[CefFactory.Legacy] 正在创建浏览器控件...");
 
+            // TODO: 返回真实的 AvaloniaCefBrowser 包装控件
+            // 目前返回占位符
             return new LegacyBrowserControl(_config, DriverDirectory);
         }
 
         public void Shutdown()
         {
-            Console.WriteLine("[CefFactory.Legacy] 正在关闭...");
+            System.Diagnostics.Debug.WriteLine("[CefFactory.Legacy] 正在关闭...");
             _initialized = false;
         }
     }
 
     /// <summary>
     /// Legacy驱动浏览器控件
-    /// 生产环境中应包装AvaloniaCefBrowser
+    /// 
+    /// 注意：目前是占位符实现
+    /// 要实现真正的浏览器功能，需要:
+    /// 1. 添加 CefGlue NuGet 包引用
+    /// 2. 使用 AvaloniaCefBrowser 作为底层控件
+    /// 3. 配置 CefRuntimeLoader.Initialize()
     /// </summary>
     public class LegacyBrowserControl : IBrowserControl
     {
@@ -93,7 +100,7 @@ namespace MyBrowser.Driver.Legacy
             _driverDir = driverDir;
             _url = config.InitialUrl;
             
-            Console.WriteLine($"[LegacyBrowserControl] 已创建, 驱动目录: {_driverDir}");
+            System.Diagnostics.Debug.WriteLine($"[LegacyBrowserControl] 已创建, 驱动目录: {_driverDir}");
         }
 
         public bool IsLoading => _isLoading;
@@ -111,12 +118,12 @@ namespace MyBrowser.Driver.Legacy
 
         public void LoadUrl(string url)
         {
-            Console.WriteLine($"[LegacyBrowserControl] LoadUrl: {url}");
+            System.Diagnostics.Debug.WriteLine($"[LegacyBrowserControl] LoadUrl: {url}");
             _url = url;
             _isLoading = true;
             LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
             
-            // 实际实现中应调用:
+            // TODO: 调用真实的浏览器加载
             // CefBrowserHost.CreateBrowser(windowHandle, settings, url);
             
             _isLoading = false;
@@ -126,35 +133,35 @@ namespace MyBrowser.Driver.Legacy
 
         public void GoBack() 
         {
-            Console.WriteLine("[LegacyBrowserControl] 后退 - 未实现");
+            System.Diagnostics.Debug.WriteLine("[LegacyBrowserControl] 后退 - 未实现");
         }
         
         public void GoForward() 
         {
-            Console.WriteLine("[LegacyBrowserControl] 前进 - 未实现");
+            System.Diagnostics.Debug.WriteLine("[LegacyBrowserControl] 前进 - 未实现");
         }
         
         public void Reload() 
         {
-            Console.WriteLine("[LegacyBrowserControl] 重新加载");
+            System.Diagnostics.Debug.WriteLine("[LegacyBrowserControl] 重新加载");
             LoadUrl(_url);
         }
         
         public void Stop() 
         {
-            Console.WriteLine("[LegacyBrowserControl] 停止");
+            System.Diagnostics.Debug.WriteLine("[LegacyBrowserControl] 停止");
             _isLoading = false;
         }
         
         public void ExecuteJavaScript(string script)
         {
-            Console.WriteLine($"[LegacyBrowserControl] 执行脚本: {script}");
-            // 实际实现中应调用: CefBrowserHost.ExecuteJavaScript(script, url, 0);
+            System.Diagnostics.Debug.WriteLine($"[LegacyBrowserControl] 执行脚本: {script}");
+            // TODO: CefBrowserHost.ExecuteJavaScript(script, url, 0);
         }
 
         public void Dispose()
         {
-            Console.WriteLine("[LegacyBrowserControl] 已释放");
+            System.Diagnostics.Debug.WriteLine("[LegacyBrowserControl] 已释放");
         }
     }
 }
