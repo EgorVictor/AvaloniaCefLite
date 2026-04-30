@@ -1,8 +1,10 @@
 namespace MyBrowser.Interop
 {
     using System;
+    using System.IO;
     using System.Runtime.InteropServices;
     using MyBrowser.Interop.Internal;
+    using Serilog;
 
     /// <summary>
     /// CEF 运行时管理器
@@ -10,9 +12,28 @@ namespace MyBrowser.Interop
     /// </summary>
     public sealed unsafe class CefRuntime
     {
+        private static readonly string _logFile = @"F:\mybrowser.log";
         private static bool _initialized;
         private static bool _shutdown;
         private static CefRuntime? _instance;
+
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
+        static CefRuntime()
+        {
+            // 每次程序启动时删除旧日志
+            try
+            {
+                if (File.Exists(_logFile))
+                {
+                    File.Delete(_logFile);
+                }
+            }
+            catch { }
+        }
 
         public static CefRuntime Instance => _instance ??= new CefRuntime();
         public static bool IsInitialized => _initialized;
@@ -35,12 +56,12 @@ namespace MyBrowser.Interop
         {
             if (_initialized)
             {
-                Logger.Log("[CefRuntime] Already initialized");
+                _log.Information("[CefRuntime] Already initialized");
                 return true;
             }
 
-            Logger.Log("[CefRuntime] Initializing CEF...");
-            Logger.Log("[CefRuntime] sizeof(CefSettings) = {0}", sizeof(CefSettings));
+            _log.Information("[CefRuntime] Initializing CEF...");
+            _log.Information("[CefRuntime] sizeof(CefSettings) = {0}", sizeof(CefSettings));
 
             // Initialize ALL fields of CefSettings to proper values
             var settings = new CefSettings
@@ -71,23 +92,23 @@ namespace MyBrowser.Interop
 
             var args = new CefMainArgs { Instance = instanceHandle };
 
-            Logger.Log("[CefRuntime] Calling cef_initialize...");
-            Logger.Log("[CefRuntime] settings.size = {0}", settings.size);
-            Logger.Log("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
+            _log.Information("[CefRuntime] Calling cef_initialize...");
+            _log.Information("[CefRuntime] settings.size = {0}", settings.size);
+            _log.Information("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
 
             // Pass NULL for app - it's optional and we don't have proper callbacks
             // For unmanaged structs, we can take address directly without 'fixed'
             int result = CefNative.CefInitialize(&args, &settings, null, IntPtr.Zero);
-            Logger.Log("[CefRuntime] cef_initialize returned: {0}", result);
+            _log.Information("[CefRuntime] cef_initialize returned: {0}", result);
 
             if (result != 0)
             {
                 _initialized = true;
-                Logger.Log("[CefRuntime] CEF initialized OK");
+                _log.Information("[CefRuntime] CEF initialized OK");
                 return true;
             }
 
-            Logger.Log("[CefRuntime] CEF initialization FAILED!");
+            _log.Information("[CefRuntime] CEF initialization FAILED!");
             return false;
         }
 
@@ -98,10 +119,10 @@ namespace MyBrowser.Interop
         {
             if (!_initialized || _shutdown) return;
 
-            Logger.Log("[CefRuntime] Shutting down CEF...");
+            _log.Information("[CefRuntime] Shutting down CEF...");
             CefNative.CefShutdown();
             _shutdown = true;
-            Logger.Log("[CefRuntime] CEF shut down");
+            _log.Information("[CefRuntime] CEF shut down");
         }
 
         /// <summary>

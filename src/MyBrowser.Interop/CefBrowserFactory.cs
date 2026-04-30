@@ -4,6 +4,7 @@ namespace MyBrowser.Interop
     using System.IO;
     using System.Runtime.InteropServices;
     using MyBrowser.Interop.Internal;
+    using Serilog;
 
     /// <summary>
     /// CEF 浏览器工厂
@@ -11,6 +12,11 @@ namespace MyBrowser.Interop
     /// </summary>
     public sealed unsafe class CefBrowserFactory : IDisposable
     {
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
         private CefClient _client;
         private CefBrowserSettings _settings;
         private bool _initialized;
@@ -46,13 +52,13 @@ namespace MyBrowser.Interop
         /// </summary>
         public bool CreateBrowser(IntPtr parentHwnd, string initialUrl, out IntPtr browserHandle)
         {
-            Logger.Log("[CefBrowserFactory] CreateBrowser: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
+            _log.Information("[CefBrowserFactory] CreateBrowser: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
             browserHandle = IntPtr.Zero;
             _browserHostHandle = IntPtr.Zero;
 
             if (!CefRuntime.IsInitialized)
             {
-                Logger.Log("[CefBrowserFactory] CEF not initialized!");
+                _log.Information("[CefBrowserFactory] CEF not initialized!");
                 return false;
             }
 
@@ -82,7 +88,7 @@ namespace MyBrowser.Interop
                 fixed (CefClient* clientPtr = &_client)
                 fixed (CefBrowserSettings* settingsPtr = &_settings)
                 {
-                    Logger.Log("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
+                    _log.Information("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
 
                     var result = CefNative.CefBrowserHost_CreateBrowser(
                         &windowInfo,
@@ -92,23 +98,23 @@ namespace MyBrowser.Interop
                         IntPtr.Zero,
                         IntPtr.Zero);
 
-                    Logger.Log("[CefBrowserFactory] Result: {Result}", result);
+                    _log.Information("[CefBrowserFactory] Result: {Result}", result);
 
                     if (result != 0)
                     {
                         _initialized = true;
-                        Logger.Log("[CefBrowserFactory] Browser created successfully");
+                        _log.Information("[CefBrowserFactory] Browser created successfully");
                         return true;
                     }
                 }
 
-                Logger.Log("[CefBrowserFactory] FAILED to create browser!");
+                _log.Information("[CefBrowserFactory] FAILED to create browser!");
                 return false;
             }
             catch (Exception ex)
             {
-                Logger.Log("[CefBrowserFactory] Exception: {Message}", ex.Message);
-                Logger.Log("[CefBrowserFactory] StackTrace: {StackTrace}", ex.StackTrace);
+                _log.Information("[CefBrowserFactory] Exception: {Message}", ex.Message);
+                _log.Information("[CefBrowserFactory] StackTrace: {StackTrace}", ex.StackTrace);
                 return false;
             }
             finally
@@ -125,13 +131,13 @@ namespace MyBrowser.Interop
         /// </summary>
         public bool CreateBrowserSync(IntPtr parentHwnd, string initialUrl, out IntPtr browserHandle)
         {
-            Logger.Log("[CefBrowserFactory] CreateBrowserSync: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
+            _log.Information("[CefBrowserFactory] CreateBrowserSync: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
             browserHandle = IntPtr.Zero;
             _browserHostHandle = IntPtr.Zero;
 
             if (!CefRuntime.IsInitialized)
             {
-                Logger.Log("[CefBrowserFactory] CEF not initialized!");
+                _log.Information("[CefBrowserFactory] CEF not initialized!");
                 return false;
             }
 
@@ -173,12 +179,12 @@ namespace MyBrowser.Interop
                         // 从 browser 获取 host 指针
                         _browserHostHandle = CefNative.CefBrowser_GetHost(browserPtr);
                         _initialized = true;
-                        Logger.Log("[CefBrowserFactory] Browser created (sync) OK, BrowserHost: {HostHandle}", _browserHostHandle);
+                        _log.Information("[CefBrowserFactory] Browser created (sync) OK, BrowserHost: {HostHandle}", _browserHostHandle);
                         return true;
                     }
                 }
 
-                Logger.Log("[CefBrowserFactory] Sync create FAILED!");
+                _log.Information("[CefBrowserFactory] Sync create FAILED!");
                 return false;
             }
             finally

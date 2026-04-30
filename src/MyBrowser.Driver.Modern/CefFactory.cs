@@ -6,6 +6,7 @@ namespace MyBrowser.Driver.Modern
     using System.Runtime.InteropServices;
     using MyBrowser;
     using MyBrowser.Interop;
+    using Serilog;
 
     /// <summary>
     /// 现代CEF驱动 - Windows 10+兼容性
@@ -13,6 +14,11 @@ namespace MyBrowser.Driver.Modern
     /// </summary>
     public sealed class CefFactory : IBrowserFactory
     {
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
         private BrowserConfig _config;
         private bool _initialized;
         private CefBrowserFactory? _browserFactory;
@@ -35,12 +41,12 @@ namespace MyBrowser.Driver.Modern
             DriverDirectory = Path.GetDirectoryName(typeof(CefFactory).Assembly.Location) 
                 ?? throw new InvalidOperationException("无法确定驱动目录");
 
-            Logger.Log("[CefFactory.Modern] 正在初始化现代CEF...");
-            Logger.Log("[CefFactory.Modern] 驱动目录: {DriverDirectory}", DriverDirectory);
-            Logger.Log("[CefFactory.Modern] 无窗口模式: {WindowlessRendering}", _config.WindowlessRendering);
-            Logger.Log("[CefFactory.Modern] 硬件加速: {HardwareAcceleration}", _config.HardwareAcceleration);
-            Logger.Log("[CefFactory.Modern] 缓存路径: {CachePath}", _config.CachePath);
-            Logger.Log("[CefFactory.Modern] 初始URL: {InitialUrl}", _config.InitialUrl);
+            _log.Information("[CefFactory.Modern] 正在初始化现代CEF...");
+            _log.Information("[CefFactory.Modern] 驱动目录: {DriverDirectory}", DriverDirectory);
+            _log.Information("[CefFactory.Modern] 无窗口模式: {WindowlessRendering}", _config.WindowlessRendering);
+            _log.Information("[CefFactory.Modern] 硬件加速: {HardwareAcceleration}", _config.HardwareAcceleration);
+            _log.Information("[CefFactory.Modern] 缓存路径: {CachePath}", _config.CachePath);
+            _log.Information("[CefFactory.Modern] 初始URL: {InitialUrl}", _config.InitialUrl);
 
             // 设置 DLL 搜索路径
             SetDllDirectory(DriverDirectory);
@@ -51,7 +57,7 @@ namespace MyBrowser.Driver.Modern
             _browserFactory = new CefBrowserFactory();
             _initialized = true;
 
-            Logger.Log("[CefFactory.Modern] CEF 初始化完成");
+            _log.Information("[CefFactory.Modern] CEF 初始化完成");
         }
 
         public object CreateControl()
@@ -59,7 +65,7 @@ namespace MyBrowser.Driver.Modern
             if (!_initialized)
                 throw new InvalidOperationException("工厂未初始化。请先调用Initialize()方法。");
 
-            Logger.Log("[CefFactory.Modern] 正在创建浏览器控件...");
+            _log.Information("[CefFactory.Modern] 正在创建浏览器控件...");
 
             // 传递 CefBrowserFactory 以便 ModernBrowserControl 能够创建真实浏览器
             return new ModernBrowserControl(_config, DriverDirectory, _browserFactory);
@@ -72,21 +78,21 @@ namespace MyBrowser.Driver.Modern
         {
             if (!_initialized || _browserFactory == null)
             {
-                Logger.Log("[CefFactory.Modern] 工厂未初始化");
+                _log.Information("[CefFactory.Modern] 工厂未初始化");
                 return false;
             }
 
-            Logger.Log("[CefFactory.Modern] 创建浏览器, URL: {InitialUrl}", initialUrl);
+            _log.Information("[CefFactory.Modern] 创建浏览器, URL: {InitialUrl}", initialUrl);
 
             var success = _browserFactory.CreateBrowser(parentHwnd, initialUrl, out _browserHandle);
 
             if (success)
             {
-                Logger.Log("[CefFactory.Modern] 浏览器创建成功, Handle: {BrowserHandle}", _browserHandle);
+                _log.Information("[CefFactory.Modern] 浏览器创建成功, Handle: {BrowserHandle}", _browserHandle);
             }
             else
             {
-                Logger.Log("[CefFactory.Modern] 浏览器创建失败");
+                _log.Information("[CefFactory.Modern] 浏览器创建失败");
             }
 
             return success;
@@ -94,7 +100,7 @@ namespace MyBrowser.Driver.Modern
 
         public void Shutdown()
         {
-            Logger.Log("[CefFactory.Modern] 正在关闭...");
+            _log.Information("[CefFactory.Modern] 正在关闭...");
 
             _browserFactory?.Dispose();
             _browserFactory = null;
@@ -102,7 +108,7 @@ namespace MyBrowser.Driver.Modern
             CefRuntime.Shutdown();
             _initialized = false;
 
-            Logger.Log("[CefFactory.Modern] 关闭完成");
+            _log.Information("[CefFactory.Modern] 关闭完成");
         }
 
         /// <summary>
@@ -123,6 +129,11 @@ namespace MyBrowser.Driver.Modern
     /// </summary>
     public class ModernBrowserControl : IBrowserControl
     {
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
         private readonly BrowserConfig _config;
         private readonly string _driverDir;
         private readonly CefBrowserFactory _browserFactory;
@@ -141,7 +152,7 @@ namespace MyBrowser.Driver.Modern
             _browserFactory = browserFactory;
             _url = config.InitialUrl;
 
-            Logger.Log("[ModernBrowserControl] 已创建, 驱动目录: {DriverDir}", _driverDir);
+            _log.Information("[ModernBrowserControl] 已创建, 驱动目录: {DriverDir}", _driverDir);
         }
 
         public bool IsLoading => _isLoading;
@@ -163,7 +174,7 @@ namespace MyBrowser.Driver.Modern
         public void SetWindowHandle(IntPtr parentHwnd)
         {
             _windowHandle = parentHwnd;
-            Logger.Log("[ModernBrowserControl] 设置窗口句柄: {HWND}", parentHwnd);
+            _log.Information("[ModernBrowserControl] 设置窗口句柄: {HWND}", parentHwnd);
 
             // 如果已经有URL，则创建浏览器
             if (_windowHandle != IntPtr.Zero && !string.IsNullOrEmpty(_url))
@@ -179,24 +190,24 @@ namespace MyBrowser.Driver.Modern
         {
             if (_windowHandle == IntPtr.Zero)
             {
-                Logger.Log("[ModernBrowserControl] 窗口句柄无效，无法创建浏览器");
+                _log.Information("[ModernBrowserControl] 窗口句柄无效，无法创建浏览器");
                 return false;
             }
 
-            Logger.Log("[ModernBrowserControl] 正在创建浏览器, URL: {Url}, HWND: {HWND}", _url, _windowHandle);
+            _log.Information("[ModernBrowserControl] 正在创建浏览器, URL: {Url}, HWND: {HWND}", _url, _windowHandle);
 
             var success = _browserFactory.CreateBrowser(_windowHandle, _url, out _browserHandle);
 
             if (success)
             {
-                Logger.Log("[ModernBrowserControl] 浏览器创建成功, Handle: {BrowserHandle}", _browserHandle);
+                _log.Information("[ModernBrowserControl] 浏览器创建成功, Handle: {BrowserHandle}", _browserHandle);
                 _canGoBack = false;
                 _canGoForward = false;
                 BrowserInitialized?.Invoke(this, EventArgs.Empty);
             }
             else
             {
-                Logger.Log("[ModernBrowserControl] 浏览器创建失败");
+                _log.Information("[ModernBrowserControl] 浏览器创建失败");
             }
 
             return success;
@@ -204,7 +215,7 @@ namespace MyBrowser.Driver.Modern
 
         public void LoadUrl(string url)
         {
-            Logger.Log("[ModernBrowserControl] LoadUrl: {Url}", url);
+            _log.Information("[ModernBrowserControl] LoadUrl: {Url}", url);
             _url = url;
             _isLoading = true;
             LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
@@ -225,7 +236,7 @@ namespace MyBrowser.Driver.Modern
         {
             if (_browserHandle != IntPtr.Zero)
             {
-                Logger.Log("[ModernBrowserControl] 后退");
+                _log.Information("[ModernBrowserControl] 后退");
                 _browserFactory.GoBack();
             }
         }
@@ -234,14 +245,14 @@ namespace MyBrowser.Driver.Modern
         {
             if (_browserHandle != IntPtr.Zero)
             {
-                Logger.Log("[ModernBrowserControl] 前进");
+                _log.Information("[ModernBrowserControl] 前进");
                 _browserFactory.GoForward();
             }
         }
 
         public void Reload()
         {
-            Logger.Log("[ModernBrowserControl] 重新加载");
+            _log.Information("[ModernBrowserControl] 重新加载");
             if (_browserHandle != IntPtr.Zero)
             {
                 _browserFactory.Reload();
@@ -250,7 +261,7 @@ namespace MyBrowser.Driver.Modern
 
         public void Stop()
         {
-            Logger.Log("[ModernBrowserControl] 停止");
+            _log.Information("[ModernBrowserControl] 停止");
             if (_browserHandle != IntPtr.Zero)
             {
                 _browserFactory.StopLoad();
@@ -260,7 +271,7 @@ namespace MyBrowser.Driver.Modern
 
         public void ExecuteJavaScript(string script)
         {
-            Logger.Log("[ModernBrowserControl] 执行脚本: {Script}", script);
+            _log.Information("[ModernBrowserControl] 执行脚本: {Script}", script);
             if (_browserHandle != IntPtr.Zero)
             {
                 _browserFactory.ExecuteJavaScript(script, _url, 0);
@@ -269,7 +280,7 @@ namespace MyBrowser.Driver.Modern
 
         public void Dispose()
         {
-            Logger.Log("[ModernBrowserControl] 已释放");
+            _log.Information("[ModernBrowserControl] 已释放");
             _browserHandle = IntPtr.Zero;
         }
     }

@@ -8,12 +8,18 @@ namespace MyBrowser.Demo
     using Avalonia.Platform;
     using MyBrowser;
     using MyBrowser.Interop;
+    using Serilog;
 
     /// <summary>
     /// 主窗口
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
         private IBrowserFactory _factory;
         private IBrowserControl _browser;
 
@@ -44,7 +50,7 @@ namespace MyBrowser.Demo
 
             if (_browser == null && control != null)
             {
-                Logger.Log($"[MainWindow] 已创建控件: {control.GetType().Name}");
+                _log.Information($"[MainWindow] 已创建控件: {control.GetType().Name}");
             }
 
                 // 订阅事件
@@ -52,8 +58,8 @@ namespace MyBrowser.Demo
             {
                 _browser.TitleChanged += (s, e) => Title = e.Title ?? "MyBrowser";
                 _browser.AddressChanged += (s, e) => UrlTextBox.Text = e.Address;
-                _browser.LoadStart += (s, e) => Logger.Log("[MainWindow] 开始加载");
-                _browser.LoadEnd += (s, e) => Logger.Log($"[MainWindow] 加载结束: {e.HttpStatusCode}");
+                _browser.LoadStart += (s, e) => _log.Information("[MainWindow] 开始加载");
+                _browser.LoadEnd += (s, e) => _log.Information($"[MainWindow] 加载结束: {e.HttpStatusCode}");
 
                 // 加载初始URL
                 _browser.LoadUrl("https://www.google.com");
@@ -126,6 +132,11 @@ namespace MyBrowser.Demo
     /// </summary>
     public class BrowserView : StackPanel
     {
+        private static readonly ILogger _log = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .CreateLogger();
+
         private readonly IBrowserControl? _browser;
         private readonly TextBlock _placeholder;
         private readonly Window _parentWindow;
@@ -171,7 +182,7 @@ namespace MyBrowser.Demo
                 var hwnd = GetNativeWindowHandle(_parentWindow);
                 if (hwnd != IntPtr.Zero)
                 {
-                    Logger.Log($"[BrowserView] 获取到原生HWND: {hwnd}");
+                    _log.Information($"[BrowserView] 获取到原生HWND: {hwnd}");
 
                     // 如果浏览器控件有 SetWindowHandle 方法，则调用它
                     var setHandleMethod = _browser.GetType().GetMethod("SetWindowHandle");
@@ -191,13 +202,13 @@ namespace MyBrowser.Demo
                 var platformHandle = window.TryGetPlatformHandle();
                 if (platformHandle != null)
                 {
-                    Logger.Log($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
+                    _log.Information($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
                     return platformHandle.Handle;
                 }
             }
             catch (Exception ex)
             {
-                Logger.Log($"[BrowserView] 获取HWND失败: {ex.Message}");
+                _log.Information($"[BrowserView] 获取HWND失败: {ex.Message}");
             }
             return IntPtr.Zero;
         }
