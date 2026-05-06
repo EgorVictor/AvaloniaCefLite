@@ -4,6 +4,8 @@ namespace MyBrowser.Interop
     using System.IO;
     using System.Runtime.InteropServices;
     using MyBrowser.Interop.Internal;
+    using MyBrowser.Interop.cef;
+    using MyBrowser.Interop.cef.capi;
     using Serilog;
 
     /// <summary>
@@ -18,7 +20,7 @@ namespace MyBrowser.Interop
             .CreateLogger();
 
         private CefClient _client;
-        private CefBrowserSettings _settings;
+        private cef_browser_settings_t _settings;
         private bool _initialized;
         private IntPtr _browserHostHandle;
 
@@ -28,20 +30,7 @@ namespace MyBrowser.Interop
 
         public CefBrowserFactory()
         {
-            // Initialize client with reference counting
-            _client = new CefClient
-            {
-                Base = new CefBase
-                {
-                    size = (UIntPtr)sizeof(CefBase),
-                    add_ref = IntPtr.Zero,
-                    release = IntPtr.Zero,
-                    has_one_ref = IntPtr.Zero,
-                    has_at_least_one_ref = IntPtr.Zero
-                }
-            };
-
-            // Initialize browser settings
+            _client = new CefClient();
             _settings = CreateDefaultSettings();
             _initialized = false;
             _browserHostHandle = IntPtr.Zero;
@@ -62,22 +51,34 @@ namespace MyBrowser.Interop
                 return false;
             }
 
-            // Create window info
-            var windowInfo = new CefWindowInfo
+            // 使用 WS_CHILD 样式将浏览器嵌入父窗口
+            var windowInfo = new cef_window_info_t
             {
-                size = (UIntPtr)sizeof(CefWindowInfo),
+                size = (UIntPtr)sizeof(cef_window_info_t),
+                window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
+                x = 0,
+                y = 0,
+                width = 1024,
+                height = 768,
                 parent_window = parentHwnd,
                 windowless_rendering_enabled = 0,
-                style = 0xCF0000, // WS_OVERLAPPEDWINDOW
+                shared_texture_enabled = 0,
+                external_begin_frame_enabled = 0,
+                window = IntPtr.Zero,
+                hidden = 0,
+                parent_view = IntPtr.Zero,
+                view = IntPtr.Zero,
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00090000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
                 ex_style = 0,
-                bounds = new CefRect { x = 0, y = 0, width = 1024, height = 768 }
+                menu = IntPtr.Zero,
+                transparency = 0,
+                rects_provided = 0
             };
 
-            // Create URL string
-            var url = new CefString();
+            var url = new cef_string_t();
             if (!string.IsNullOrEmpty(initialUrl))
             {
-                var urlStr = Marshal.StringToHGlobalUni(initialUrl);
+                var urlStr = Marshal.StringToHGlobalUni(initialUrl + "\0");
                 url.str = (char*)urlStr;
                 url.length = (UIntPtr)initialUrl.Length;
                 url.dtor = IntPtr.Zero;
@@ -85,12 +86,12 @@ namespace MyBrowser.Interop
 
             try
             {
-                fixed (CefClient* clientPtr = &_client)
-                fixed (CefBrowserSettings* settingsPtr = &_settings)
+                cef_client_t* clientPtr = (cef_client_t*)_client.Handle;
+                fixed (cef_browser_settings_t* settingsPtr = &_settings)
                 {
                     _log.Information("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
 
-                    var result = CefNative.CefBrowserHost_CreateBrowser(
+                    var result = NativeMethods.cef_browser_host_create_browser(
                         &windowInfo,
                         clientPtr,
                         &url,
@@ -142,30 +143,44 @@ namespace MyBrowser.Interop
             }
 
             // 使用 WS_CHILD 样式将浏览器嵌入父窗口
-            // 参考 CefGlue: style = WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
-            var windowInfo = new CefWindowInfo
+            var windowInfo = new cef_window_info_t
             {
-                size = (UIntPtr)sizeof(CefWindowInfo),
+                size = (UIntPtr)sizeof(cef_window_info_t),
+                window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
+                x = 0,
+                y = 0,
+                width = 1024,
+                height = 768,
                 parent_window = parentHwnd,
-                bounds = new CefRect { x = 0, y = 0, width = 1024, height = 768 },
+                windowless_rendering_enabled = 0,
+                shared_texture_enabled = 0,
+                external_begin_frame_enabled = 0,
+                window = IntPtr.Zero,
+                hidden = 0,
+                parent_view = IntPtr.Zero,
+                view = IntPtr.Zero,
                 style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00090000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
-                ex_style = 0
+                ex_style = 0,
+                menu = IntPtr.Zero,
+                transparency = 0,
+                rects_provided = 0
             };
 
-            var url = new CefString();
+            var url = new cef_string_t();
             if (!string.IsNullOrEmpty(initialUrl))
             {
                 var urlStr = Marshal.StringToHGlobalUni(initialUrl + "\0");
                 url.str = (char*)urlStr;
                 url.length = (UIntPtr)initialUrl.Length;
+                url.dtor = IntPtr.Zero;
             }
 
             try
             {
-                fixed (CefClient* clientPtr = &_client)
-                fixed (CefBrowserSettings* settingsPtr = &_settings)
+                cef_client_t* clientPtr = (cef_client_t*)_client.Handle;
+                fixed (cef_browser_settings_t* settingsPtr = &_settings)
                 {
-                    var browserPtr = CefNative.CefBrowserHost_CreateBrowserSync(
+                    var browserPtr = NativeMethods.cef_browser_host_create_browser_sync(
                         &windowInfo,
                         clientPtr,
                         &url,
@@ -176,8 +191,7 @@ namespace MyBrowser.Interop
                     if (browserPtr != IntPtr.Zero)
                     {
                         browserHandle = browserPtr;
-                        // 从 browser 获取 host 指针
-                        _browserHostHandle = CefNative.CefBrowser_GetHost(browserPtr);
+                        _browserHostHandle = NativeMethods.cef_browser_get_host(browserPtr);
                         _initialized = true;
                         _log.Information("[CefBrowserFactory] Browser created (sync) OK, BrowserHost: {HostHandle}", _browserHostHandle);
                         return true;
@@ -200,7 +214,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_GoBack(_browserHostHandle);
+                NativeMethods.cef_browser_host_go_back(_browserHostHandle);
             }
         }
 
@@ -211,7 +225,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_GoForward(_browserHostHandle);
+                NativeMethods.cef_browser_host_go_forward(_browserHostHandle);
             }
         }
 
@@ -222,7 +236,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_Reload(_browserHostHandle);
+                NativeMethods.cef_browser_host_reload(_browserHostHandle);
             }
         }
 
@@ -233,7 +247,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_ReloadIgnoreCache(_browserHostHandle);
+                NativeMethods.cef_browser_host_reload_ignore_cache(_browserHostHandle);
             }
         }
 
@@ -244,7 +258,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_StopLoad(_browserHostHandle);
+                NativeMethods.cef_browser_host_stop_load(_browserHostHandle);
             }
         }
 
@@ -258,14 +272,14 @@ namespace MyBrowser.Interop
                 var codeStr = Marshal.StringToHGlobalUni(code + "\0");
                 var urlStr = string.IsNullOrEmpty(url) ? IntPtr.Zero : Marshal.StringToHGlobalUni(url + "\0");
 
-                var cefCode = new CefString
+                var cefCode = new cef_string_t
                 {
                     str = (char*)codeStr,
                     length = (UIntPtr)code.Length,
                     dtor = IntPtr.Zero
                 };
 
-                var cefUrl = new CefString();
+                var cefUrl = new cef_string_t();
                 if (urlStr != IntPtr.Zero)
                 {
                     cefUrl.str = (char*)urlStr;
@@ -273,7 +287,7 @@ namespace MyBrowser.Interop
                     cefUrl.dtor = IntPtr.Zero;
                 }
 
-                CefNative.CefBrowserHost_ExecuteJavaScript(_browserHostHandle, &cefCode, &cefUrl, line);
+                NativeMethods.cef_browser_host_execute_javascript(_browserHostHandle, &cefCode, &cefUrl, line);
 
                 Marshal.FreeHGlobal(codeStr);
                 if (urlStr != IntPtr.Zero) Marshal.FreeHGlobal(urlStr);
@@ -287,7 +301,7 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                return CefNative.CefBrowserHost_IsLoading(_browserHostHandle) != 0;
+                return NativeMethods.cef_browser_host_is_loading(_browserHostHandle) != 0;
             }
             return false;
         }
@@ -299,18 +313,18 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
-                CefNative.CefBrowserHost_CloseBrowser(_browserHostHandle, forceClose ? 1 : 0);
+                NativeMethods.cef_browser_host_close_browser(_browserHostHandle, forceClose ? 1 : 0);
             }
         }
 
         /// <summary>
         /// 创建默认浏览器设置
         /// </summary>
-        private static CefBrowserSettings CreateDefaultSettings()
+        private static cef_browser_settings_t CreateDefaultSettings()
         {
-            return new CefBrowserSettings
+            return new cef_browser_settings_t
             {
-                size = (UIntPtr)sizeof(CefBrowserSettings),
+                size = (UIntPtr)sizeof(cef_browser_settings_t),
                 windowless_frame_rate = 30,
                 javascript = 1,
                 local_storage = 1,

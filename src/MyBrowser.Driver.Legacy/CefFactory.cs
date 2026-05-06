@@ -128,6 +128,12 @@ namespace MyBrowser.Driver.Legacy
         public event EventHandler<TitleChangedEventArgs> TitleChanged;
         public event EventHandler<AddressChangedEventArgs> AddressChanged;
 
+        public void SetWindowHandle(IntPtr hwnd)
+        {
+            _log.Information("[LegacyBrowserControl] SetWindowHandle: {HWND}", hwnd);
+            // Legacy driver placeholder
+        }
+
         public void LoadUrl(string url)
         {
             _log.Information("[LegacyBrowserControl] LoadUrl: {Url}", url);

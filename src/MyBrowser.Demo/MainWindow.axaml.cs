@@ -62,7 +62,7 @@ namespace MyBrowser.Demo
                 _browser.LoadEnd += (s, e) => _log.Information($"[MainWindow] 加载结束: {e.HttpStatusCode}");
 
                 // 加载初始URL
-                _browser.LoadUrl("https://www.google.com");
+                _browser.LoadUrl("https://www.baidu.com");
             }
 
             // 创建标签页
@@ -128,82 +128,72 @@ namespace MyBrowser.Demo
     }
 
     /// <summary>
-    /// 浏览器视图包装器
+    /// 浏览器视图 - 嵌入CEF浏览器到Avalonia窗口
     /// </summary>
-    public class BrowserView : StackPanel
+    public class BrowserView : Panel
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
-        private readonly IBrowserControl? _browser;
-        private readonly TextBlock _placeholder;
-        private readonly Window _parentWindow;
+        private readonly IBrowserControl _browser;
+        private IntPtr _containerHwnd;
+        private bool _browserCreated;
 
-        public BrowserView(IBrowserControl? browser, Window parentWindow)
+        public BrowserView(IBrowserControl browser, Window parentWindow)
         {
             _browser = browser;
-            _parentWindow = parentWindow;
-
+            
             if (_browser == null)
             {
-                _placeholder = new TextBlock
-                {
-                    Text = "无浏览器控件",
-                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
-                };
-                Children.Add(_placeholder);
+                return;
             }
-            else
-            {
-                // TODO: 在此处添加实际的浏览器控件
-                // 目前显示状态信息
-                _placeholder = new TextBlock
-                {
-                    Text = $"浏览器: {_browser.GetType().Name}",
-                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
-                };
-                Children.Add(_placeholder);
 
-                // 获取原生窗口句柄并传递给浏览器控件
-                // 这应该在布局完成后再调用
-                Loaded += OnLoaded;
-            }
+            // 获取浏览器控件的HWND并创建浏览器
+            Loaded += OnLoaded;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            // 获取原生 HWND 并传递给浏览器控件
-            if (_browser != null && _parentWindow != null)
-            {
-                var hwnd = GetNativeWindowHandle(_parentWindow);
-                if (hwnd != IntPtr.Zero)
-                {
-                    _log.Information($"[BrowserView] 获取到原生HWND: {hwnd}");
+            if (_browserCreated) return;
 
-                    // 如果浏览器控件有 SetWindowHandle 方法，则调用它
-                    var setHandleMethod = _browser.GetType().GetMethod("SetWindowHandle");
-                    setHandleMethod?.Invoke(_browser, new object[] { hwnd });
-                }
+            var hwnd = GetNativeWindowHandle(this);
+            if (hwnd != IntPtr.Zero)
+            {
+                _containerHwnd = hwnd;
+                _log.Information($"[BrowserView] 获取到容器HWND: {hwnd}");
+
+                // 设置窗口句柄并创建浏览器
+                _browser.SetWindowHandle(hwnd);
+                _browserCreated = true;
             }
         }
 
+        protected override void OnSizeChanged(SizeChangedEventArgs e)
+        {
+            base.OnSizeChanged(e);
+            
+            // 浏览器窗口大小调整由CEF自动处理
+            // 如果需要手动调整，可以在这里实现
+        }
+
         /// <summary>
-        /// 获取 Avalonia 窗口的原生 HWND
+        /// 获取Avalonia控件的原生HWND
         /// </summary>
-        private IntPtr GetNativeWindowHandle(Window window)
+        private IntPtr GetNativeWindowHandle(Control control)
         {
             try
             {
-                // 使用 Avalonia 的平台特定接口获取原生句柄
-                var platformHandle = window.TryGetPlatformHandle();
-                if (platformHandle != null)
+                var topLevel = TopLevel.GetTopLevel(control);
+                if (topLevel != null)
                 {
-                    _log.Information($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
-                    return platformHandle.Handle;
+                    var platformHandle = topLevel.TryGetPlatformHandle();
+                    if (platformHandle != null)
+                    {
+                        _log.Information($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
+                        return platformHandle.Handle;
+                    }
                 }
             }
             catch (Exception ex)

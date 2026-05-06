@@ -175,6 +175,11 @@ namespace MyBrowser
         bool CanGoForward { get; }
 
         /// <summary>
+        /// 设置原生窗口句柄
+        /// </summary>
+        void SetWindowHandle(IntPtr hwnd);
+
+        /// <summary>
         /// 加载URL
         /// </summary>
         void LoadUrl(string url);

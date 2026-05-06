@@ -50,11 +50,6 @@ namespace MyBrowser.Interop.Internal
         public CefBase Base;
     }
 
-    public unsafe struct CefClient
-    {
-        public CefBase Base;
-    }
-
     public unsafe struct CefBase
     {
         public UIntPtr size;
@@ -89,8 +84,8 @@ namespace MyBrowser.Interop.Internal
         public int hidden;
         public IntPtr parent_view;
         public IntPtr view;
-        public uint ex_style;
         public uint style;
+        public uint ex_style;
         public IntPtr menu;
     }
 

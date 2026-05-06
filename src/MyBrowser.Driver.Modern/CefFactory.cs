@@ -51,8 +51,8 @@ namespace MyBrowser.Driver.Modern
             // 设置 DLL 搜索路径
             SetDllDirectory(DriverDirectory);
 
-            // 初始化 CEF
-            CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: true);
+            // 初始化 CEF - 禁用多线程消息循环，让 Avalonia 统一处理消息
+            CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: false);
 
             _browserFactory = new CefBrowserFactory();
             _initialized = true;
@@ -196,6 +196,7 @@ namespace MyBrowser.Driver.Modern
 
             _log.Information("[ModernBrowserControl] 正在创建浏览器, URL: {Url}, HWND: {HWND}", _url, _windowHandle);
 
+            // 使用异步方法创建浏览器，因为同步方法在消息循环未运行时可能失败
             var success = _browserFactory.CreateBrowser(_windowHandle, _url, out _browserHandle);
 
             if (success)
