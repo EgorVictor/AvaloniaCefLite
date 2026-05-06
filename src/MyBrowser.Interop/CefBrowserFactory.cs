@@ -324,18 +324,31 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero)
             {
-                _log.Information("[CefBrowserFactory] Browser handle is zero, cannot load URL");
                 return;
             }
 
-            var mainFrame = NativeMethods.cef_browser_get_main_frame(BrowserHandle);
+            // get_main_frame is vtable offset 88 in cef_browser_t
+            var getMainFramePtr = Marshal.ReadIntPtr(BrowserHandle, 88);
+            if (getMainFramePtr == IntPtr.Zero)
+            {
+                return;
+            }
+            var getMainFrame = Marshal.GetDelegateForFunctionPointer<cef_browser_get_main_frame>(getMainFramePtr);
+            var mainFrame = getMainFrame(BrowserHandle);
             if (mainFrame == IntPtr.Zero)
             {
-                _log.Information("[CefBrowserFactory] Main frame is zero");
                 return;
             }
 
-            var urlStr = Marshal.StringToHGlobalUni(url + "\0");
+            // load_url is vtable offset 136 in cef_frame_t
+            var loadUrlPtr = Marshal.ReadIntPtr(mainFrame, 136);
+            if (loadUrlPtr == IntPtr.Zero)
+            {
+                return;
+            }
+            var loadUrl = Marshal.GetDelegateForFunctionPointer<cef_frame_load_url>(loadUrlPtr);
+
+            var urlStr = Marshal.StringToHGlobalUni(url);
             var cefUrl = new cef_string_t
             {
                 str = (char*)urlStr,
@@ -343,7 +356,7 @@ namespace MyBrowser.Interop
                 dtor = IntPtr.Zero
             };
 
-            NativeMethods.cef_frame_load_url(mainFrame, &cefUrl);
+            loadUrl(mainFrame, &cefUrl);
             Marshal.FreeHGlobal(urlStr);
 
             _log.Information("[CefBrowserFactory] LoadUrl: {Url}", url);
