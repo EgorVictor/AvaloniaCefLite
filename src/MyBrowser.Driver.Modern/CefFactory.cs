@@ -238,6 +238,9 @@ namespace MyBrowser.Driver.Modern
 
             _log.Information("[ModernBrowserControl] 正在创建浏览器, URL: {Url}, HWND: {HWND}", _url, _windowHandle);
 
+            // Set container HWND for resize tracking
+            _browserFactory.SetContainerHwnd(_windowHandle);
+
             // 使用异步方法创建浏览器，因为同步方法在消息循环未运行时可能失败
             var success = _browserFactory.CreateBrowser(_windowHandle, _url, out _browserHandle);
 

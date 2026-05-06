@@ -74,6 +74,7 @@ namespace MyBrowser.Interop.cef.capi
     public unsafe delegate IntPtr cef_browser_get_host(IntPtr browser);
     public unsafe delegate void cef_browser_host_was_resized(IntPtr host);
     public unsafe delegate void cef_browser_host_notify_move_or_resize_started(IntPtr host);
+    public unsafe delegate IntPtr cef_browser_host_get_window_handle(IntPtr host);
 
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct _cef_string_visitor_t

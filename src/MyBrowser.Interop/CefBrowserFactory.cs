@@ -23,6 +23,12 @@ namespace MyBrowser.Interop
         private cef_browser_settings_t _settings;
         private bool _initialized;
         private IntPtr _browserHostHandle;
+        private IntPtr _containerHwnd;
+
+        public void SetContainerHwnd(IntPtr hwnd)
+        {
+            _containerHwnd = hwnd;
+        }
 
         public IntPtr BrowserHandle { get; private set; }
         public IntPtr BrowserHostHandle => _browserHostHandle;
@@ -406,16 +412,59 @@ namespace MyBrowser.Interop
 
         public void NotifyBrowserResized()
         {
-            if (_browserHostHandle == IntPtr.Zero)
+            if (_browserHostHandle == IntPtr.Zero || _containerHwnd == IntPtr.Zero)
             {
-                _log.Information("[CefBrowserFactory] NotifyBrowserResized skipped - host handle is zero");
                 return;
             }
 
-            // For windowed rendering mode, SetWindowPos handles the window positioning.
-            // No additional CEF notification is needed for windowed browsers.
-            _log.Information("[CefBrowserFactory] NotifyBrowserResized completed (windowed mode - no action needed)");
+            // Get the container size
+            GetClientRect(_containerHwnd, out RECT rc);
+
+            // Get the browser's native window handle
+            var browserHwnd = GetBrowserHwnd();
+            if (browserHwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            // Resize browser window to fill the parent container
+            SetWindowPos(browserHwnd, IntPtr.Zero, rc.Left, rc.Top,
+                rc.Right - rc.Left, rc.Bottom - rc.Top, SWP_NOZORDER | SWP_NOACTIVATE);
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left, Top, Right, Bottom;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+            int X, int Y, int cx, int cy, uint uFlags);
+
+        private IntPtr GetBrowserHwnd()
+        {
+            // cef_browser_host_t vtable:
+            // 0: base_
+            // 40: get_browser
+            // 48: close_browser
+            // 56: try_close_browser
+            // 64: set_focus
+            // 72: get_window_handle
+            var ptr = Marshal.ReadIntPtr(_browserHostHandle, 72);
+            if (ptr == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+            var getWindowHandle = Marshal.GetDelegateForFunctionPointer<cef_browser_host_get_window_handle>(ptr);
+            return getWindowHandle(_browserHostHandle);
+        }
+
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_NOACTIVATE = 0x0010;
 
         public void Dispose()
         {

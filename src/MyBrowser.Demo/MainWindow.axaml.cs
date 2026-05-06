@@ -156,6 +156,8 @@ namespace MyBrowser.Demo
                 return;
             }
 
+            _browser.BrowserInitialized += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateNativeBounds());
+
             Loaded += OnLoaded;
             DetachedFromVisualTree += OnDetachedFromVisualTree;
         }
