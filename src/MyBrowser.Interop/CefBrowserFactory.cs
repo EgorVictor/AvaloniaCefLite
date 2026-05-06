@@ -72,7 +72,9 @@ namespace MyBrowser.Interop
             // 使用 WS_CHILD 样式将浏览器嵌入父窗口
             var windowInfo = new cef_window_info_t
             {
+                ex_style = 0,
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000,
                 bounds = new cef_rect_t
                 {
                     x = 0,
@@ -81,16 +83,11 @@ namespace MyBrowser.Interop
                     height = 768
                 },
                 parent_window = parentHwnd,
+                menu = IntPtr.Zero,
                 windowless_rendering_enabled = 0,
                 shared_texture_enabled = 0,
                 external_begin_frame_enabled = 0,
                 window = IntPtr.Zero,
-                hidden = 0,
-                parent_view = IntPtr.Zero,
-                view = IntPtr.Zero,
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000,
-                ex_style = 0,
-                menu = IntPtr.Zero
             };
 
             var url = new cef_string_t();
@@ -163,8 +160,9 @@ namespace MyBrowser.Interop
             // 使用 WS_CHILD 样式将浏览器嵌入父窗口
             var windowInfo = new cef_window_info_t
             {
-                size = (UIntPtr)sizeof(cef_window_info_t),
+                ex_style = 0,
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000,
                 bounds = new cef_rect_t
                 {
                     x = 0,
@@ -173,16 +171,11 @@ namespace MyBrowser.Interop
                     height = 768
                 },
                 parent_window = parentHwnd,
+                menu = IntPtr.Zero,
                 windowless_rendering_enabled = 0,
                 shared_texture_enabled = 0,
                 external_begin_frame_enabled = 0,
                 window = IntPtr.Zero,
-                hidden = 0,
-                parent_view = IntPtr.Zero,
-                view = IntPtr.Zero,
-                ex_style = 0,
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
-                menu = IntPtr.Zero
             };
 
             var url = new cef_string_t();
@@ -348,6 +341,7 @@ namespace MyBrowser.Interop
                 javascript = 1,
                 local_storage = 1,
                 databases = 1,
+                webgl = 1,
                 background_color = 0xFFFFFFFF
             };
         }

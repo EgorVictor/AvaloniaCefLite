@@ -10,12 +10,24 @@ namespace MyBrowser.Interop.cef.capi
 
     #region Base Types
 
-    public unsafe delegate int cef_base_ref_counted_add_ref(IntPtr ptr);
-    public unsafe delegate int cef_base_ref_counted_release(IntPtr ptr);
-    public unsafe delegate int cef_base_ref_counted_has_one_ref(IntPtr ptr);
-    public unsafe delegate int cef_base_ref_counted_has_at_least_one_ref(IntPtr ptr);
+    // CEF 109: add_ref returns void, others return int
+    public unsafe delegate void cef_base_ref_counted_add_ref(IntPtr self);
+    public unsafe delegate int cef_base_ref_counted_release(IntPtr self);
+    public unsafe delegate int cef_base_ref_counted_has_one_ref(IntPtr self);
+    public unsafe delegate int cef_base_ref_counted_has_at_least_one_ref(IntPtr self);
 
+    // CEF 109 cef_base_ref_counted_t
     [StructLayout(LayoutKind.Sequential)]
+    public struct cef_base_ref_counted_t
+    {
+        public UIntPtr size;
+        public IntPtr add_ref;
+        public IntPtr release;
+        public IntPtr has_one_ref;
+        public IntPtr has_at_least_one_ref;
+    }
+
+    // Alias for backward compatibility
     public struct cef_base_t
     {
         public UIntPtr size;
@@ -104,44 +116,46 @@ namespace MyBrowser.Interop.cef.capi
         IntPtr target_frame_name,
         int target_disposition,
         int user_gesture,
-        IntPtr popup_features,
-        IntPtr window_info,
+        IntPtr popupFeatures,
+        IntPtr windowInfo,
         IntPtr client,
         IntPtr settings,
         IntPtr extra_info,
         int* no_javascript_access);
 
-    public unsafe delegate void cef_life_span_handler_on_after_created(IntPtr self, IntPtr browser, IntPtr popup_browser);
+    public unsafe delegate void cef_life_span_handler_on_after_created(IntPtr self, IntPtr browser);
+    public unsafe delegate int cef_life_span_handler_do_close(IntPtr self, IntPtr browser);
     public unsafe delegate void cef_life_span_handler_on_before_close(IntPtr self, IntPtr browser);
-    public unsafe delegate void cef_life_span_handler_on_render_view_ready(IntPtr self, IntPtr browser);
 
+    // CEF 109 actual field order from cef_life_span_handler_capi.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_life_span_handler_t
     {
-        public cef_base_t base_;
-        public cef_life_span_handler_on_before_popup on_before_popup;
-        public cef_life_span_handler_on_after_created on_after_created;
-        public cef_life_span_handler_on_before_close on_before_close;
-        public cef_life_span_handler_on_render_view_ready on_render_view_ready;
+        public cef_base_ref_counted_t base_;
+        public IntPtr on_before_popup;
+        public IntPtr on_after_created;
+        public IntPtr do_close;
+        public IntPtr on_before_close;
     }
 
     #endregion
 
     #region Load Handler
 
+    public unsafe delegate void cef_load_handler_on_loading_state_change(IntPtr self, IntPtr browser, int isLoading, int canGoBack, int canGoForward);
     public unsafe delegate void cef_load_handler_on_load_start(IntPtr self, IntPtr browser, IntPtr frame, int transition_type);
-    public unsafe delegate void cef_load_handler_on_load_end(IntPtr self, IntPtr browser, IntPtr frame, int http_status_code);
-    public unsafe delegate void cef_load_handler_on_load_error(IntPtr self, IntPtr browser, IntPtr frame, int error_code, IntPtr error_text, IntPtr failed_url);
-    public unsafe delegate void cef_load_handler_on_load_progress_change(IntPtr self, IntPtr browser, double progress);
+    public unsafe delegate void cef_load_handler_on_load_end(IntPtr self, IntPtr browser, IntPtr frame, int httpStatusCode);
+    public unsafe delegate void cef_load_handler_on_load_error(IntPtr self, IntPtr browser, IntPtr frame, int errorCode, IntPtr errorText, IntPtr failedUrl);
 
+    // CEF 109 actual field order from cef_load_handler_capi.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_load_handler_t
     {
-        public cef_base_t base_;
-        public cef_load_handler_on_load_start on_load_start;
-        public cef_load_handler_on_load_end on_load_end;
-        public cef_load_handler_on_load_error on_load_error;
-        public cef_load_handler_on_load_progress_change on_load_progress_change;
+        public cef_base_ref_counted_t base_;
+        public IntPtr on_loading_state_change;
+        public IntPtr on_load_start;
+        public IntPtr on_load_end;
+        public IntPtr on_load_error;
     }
 
     #endregion
@@ -175,21 +189,30 @@ namespace MyBrowser.Interop.cef.capi
 
     #region Client
 
+    // CEF 109 actual field order from cef_client_capi.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_client_t
     {
-        public cef_base_t base_;
-        public IntPtr get_life_span_handler;
-        public IntPtr get_load_handler;
-        public IntPtr get_browser_handler;
+        public cef_base_ref_counted_t base_;
+        public IntPtr get_audio_handler;
+        public IntPtr get_command_handler;
         public IntPtr get_context_menu_handler;
         public IntPtr get_dialog_handler;
-        public IntPtr get_keyboard_handler;
-        public IntPtr get_render_handler;
+        public IntPtr get_display_handler;
+        public IntPtr get_download_handler;
+        public IntPtr get_drag_handler;
         public IntPtr get_find_handler;
+        public IntPtr get_focus_handler;
+        public IntPtr get_frame_handler;
+        public IntPtr get_permission_handler;
         public IntPtr get_jsdialog_handler;
-        public IntPtr get_electron_bindings;
-        public IntPtr get_audio_handler;
+        public IntPtr get_keyboard_handler;
+        public IntPtr get_life_span_handler;
+        public IntPtr get_load_handler;
+        public IntPtr get_print_handler;
+        public IntPtr get_render_handler;
+        public IntPtr get_request_handler;
+        public IntPtr on_process_message_received;
     }
 
     #endregion
@@ -240,23 +263,20 @@ namespace MyBrowser.Interop.cef.capi
         public int height;
     }
 
+    // CEF 109 actual Windows window info from cef_types_win.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_window_info_t
     {
-        public UIntPtr size;
+        public uint ex_style;
         public cef_string_t window_name;
+        public uint style;
         public cef_rect_t bounds;
         public IntPtr parent_window;
+        public IntPtr menu;
         public int windowless_rendering_enabled;
         public int shared_texture_enabled;
         public int external_begin_frame_enabled;
         public IntPtr window;
-        public int hidden;
-        public IntPtr parent_view;
-        public IntPtr view;
-        public uint ex_style;
-        public uint style;
-        public IntPtr menu;
     }
 
     #endregion
