@@ -327,8 +327,8 @@ namespace MyBrowser.Interop
                 return;
             }
 
-            // get_main_frame is vtable offset 88 in cef_browser_t
-            var getMainFramePtr = Marshal.ReadIntPtr(BrowserHandle, 88);
+            // get_main_frame is vtable offset 152 in cef_browser_t
+            var getMainFramePtr = Marshal.ReadIntPtr(BrowserHandle, 152);
             if (getMainFramePtr == IntPtr.Zero)
             {
                 return;
