@@ -35,10 +35,15 @@ namespace MyBrowser.Driver.Modern
 
         public void Initialize(BrowserConfig config)
         {
+            if (_initialized)
+            {
+                _log.Information("[CefFactory.Modern] 已经初始化，跳过");
+                return;
+            }
+
             _config = config ?? new BrowserConfig();
-            
-            // 获取此驱动DLL所在的目录
-            DriverDirectory = Path.GetDirectoryName(typeof(CefFactory).Assembly.Location) 
+
+            DriverDirectory = Path.GetDirectoryName(typeof(CefFactory).Assembly.Location)
                 ?? throw new InvalidOperationException("无法确定驱动目录");
 
             _log.Information("[CefFactory.Modern] 正在初始化现代CEF...");
@@ -48,10 +53,8 @@ namespace MyBrowser.Driver.Modern
             _log.Information("[CefFactory.Modern] 缓存路径: {CachePath}", _config.CachePath);
             _log.Information("[CefFactory.Modern] 初始URL: {InitialUrl}", _config.InitialUrl);
 
-            // 设置 DLL 搜索路径
             SetDllDirectory(DriverDirectory);
 
-            // 初始化 CEF - 禁用多线程消息循环，让 Avalonia 统一处理消息
             CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: false);
 
             _browserFactory = new CefBrowserFactory();
