@@ -11,12 +11,18 @@
 | 组件 | 状态 | 备注 |
 |------|------|------|
 | CEF P/Invoke 绑定 | ✅ 完成 | CefRuntime, CefBrowserFactory |
-| CEF 初始化 | ✅ 完成 | cef_initialize 成功 |
+| CEF 初始化 | ✅ 完成 | cef_initialize 成功，resources/locales 路径已配置 |
 | CEF 消息循环 | ✅ 已修复 | 改用多线程循环（2026-05-06） |
-| 浏览器创建 | ✅ 完成 | cef_browser_host_create_browser 工作 |
-| 浏览器控件集成 | 🔄 进行中 | ModernBrowserControl 逻辑完善 |
-| 事件回调系统 | 🔄 进行中 | LoadStart/LoadEnd/TitleChanged |
-| 完整功能 | 🔄 进行中 | 导航、JS 执行、截图等 |
+| 浏览器创建 | 🔄 修复中 | cef_browser_host_create_browser 返回 0，正在排查 |
+| 浏览器控件集成 | ✅ 逻辑完成 | ModernBrowserControl 支持真实导航 |
+| 事件回调系统 | ✅ 完成 | LoadStart/End/Title/Address/LoadingState/CanGoBack/Forward |
+| 委托生命周期 | ✅ 已修复 | 所有 delegate 保持强引用，防止 GC |
+| 引用计数 | ✅ 已修复 | cef_base_ref_counted 实现真实 Interlocked 计数 |
+| 结构体布局 | ✅ 已修复 | cef_client_t/cef_life_span_handler_t/cef_load_handler_t/cef_window_info_t |
+| 内存泄漏 | ✅ 已修复 | SetCefString 设置 dtor 回调 |
+| 重复注册 | ✅ 已修复 | AssemblyResolve 防护 + Shutdown 重置 _initialized |
+| UI 线程安全 | ✅ 已修复 | CEF 回调统一 Dispatcher.UIThread.Post |
+| 完整功能 | 🔄 进行中 | 浏览器创建失败待解决 |
 
 ---
 
@@ -594,8 +600,8 @@ dotnet run
 
 1. ✅ 控制台输出初始化日志
 2. ✅ Avalonia 窗口打开
-3. ✅ 浏览器控件加载 https://www.google.com
-4. ✅ 浏览器正常显示和交互
+3. 🔄 浏览器控件尝试加载 https://www.baidu.com
+4. ⚠️ 浏览器创建仍在排查中（cef_browser_host_create_browser 返回 0）
 
 ### 日志输出示例
 
@@ -649,8 +655,8 @@ dotnet run
 
 ### 短期（1-2 周）
 1. ✅ 修复消息循环问题（已完成 2026-05-06）
-2. 🔄 完善浏览器回调事件系统（第 2 阶段）
-3. 🔄 实现基本导航功能（第 3 阶段）
+2. ✅ 完善浏览器回调事件系统（第 2 阶段 - 完成）
+3. 🔄 修复浏览器创建失败问题（最高优先级）
 4. 🔄 集成调试工具支持（可选）
 
 ### 中期（1-2 月）
@@ -669,12 +675,25 @@ dotnet run
 
 ## 📄 版本历史
 
-### v1.0.0 (2026-05-06) - 当前版本
-**浏览器创建成功！关键突破！**
+### v1.2.0 (2026-05-06) - 当前版本
+**全面修复 CEF 集成架构问题**
+- ✅ struct 布局修复: cef_client_t/cef_life_span_handler_t/cef_load_handler_t/cef_window_info_t 匹配 CEF 109
+- ✅ 委托生命周期: 所有 delegate 保持 class 字段强引用，防止 GC 回收
+- ✅ 引用计数: cef_base_ref_counted 使用 Interlocked.Increment/Decrement 实现真实计数
+- ✅ 导航功能: LoadUrl 调用 cef_browser_get_main_frame + cef_frame_load_url
+- ✅ 内存泄漏: SetCefString 设置 dtor 回调释放 unmanaged 字符串
+- ✅ 重复注册: AssemblyResolve 防护 + Shutdown 重置 _initialized
+- ✅ UI 线程安全: CEF 回调统一使用 Dispatcher.UIThread.Post
+- ✅ 状态同步: on_loading_state_change 同步 CanGoBack/CanGoForward/IsLoading
+- ✅ 资源路径: resources_dir/locales_dir 指向驱动目录，55 个 locale pak 已下载
+- 🔄 浏览器创建: cef_browser_host_create_browser 仍返回 0，继续排查
+
+### v1.0.0 (2026-05-06)
+**浏览器创建关键突破**
 - ✅ CEF P/Invoke 绑定完整
 - ✅ CEF 初始化成功
 - ✅ **多线程消息循环正确实现**（关键修复）
-- ✅ 浏览器窗口创建成功
+- ✅ 浏览器窗口创建成功（后续发现仍存在问题）
 - ✅ 编译无错误
 - 🔄 事件回调系统（开发中，第 2 阶段）
 - 🔄 完整导航功能（开发中，第 3 阶段）
@@ -702,4 +721,4 @@ MIT License
 
 ---
 
-**最后更新**：2026-05-06 | **状态**：✅ 浏览器可用，继续开发中
+**最后更新**：2026-05-06 | **状态**：🔄 浏览器创建失败排查中，架构修复已完成

@@ -161,6 +161,9 @@ namespace MyBrowser.Driver.Modern
             _browserFactory.Client.LoadError += (s, error) => OnCefLoadError(error);
             _browserFactory.Client.TitleChanged += (s, title) => OnCefTitleChanged(title);
             _browserFactory.Client.AddressChanged += (s, url) => OnCefAddressChanged(url);
+            _browserFactory.Client.LoadingStateChanged += (s, isLoading) => OnCefLoadingStateChanged(isLoading);
+            _browserFactory.Client.CanGoBackChanged += (s, canGoBack) => OnCefCanGoBackChanged(canGoBack);
+            _browserFactory.Client.CanGoForwardChanged += (s, canGoForward) => OnCefCanGoForwardChanged(canGoForward);
             _browserFactory.Client.BrowserCreated += (s, e) =>
             {
                 _browserHandle = e.BrowserHandle;
@@ -331,6 +334,30 @@ namespace MyBrowser.Driver.Modern
             _url = url;
             _log.Information("[ModernBrowserControl] CEF OnAddressChange: {Url}", url);
             AddressChanged?.Invoke(this, new AddressChangedEventArgs { Address = url, IsMainFrame = true });
+        }
+
+        private void OnCefLoadingStateChanged(bool isLoading)
+        {
+            _isLoading = isLoading;
+            _log.Information("[ModernBrowserControl] CEF OnLoadingStateChanged: {IsLoading}", isLoading);
+        }
+
+        private void OnCefCanGoBackChanged(bool canGoBack)
+        {
+            if (_canGoBack != canGoBack)
+            {
+                _canGoBack = canGoBack;
+                _log.Information("[ModernBrowserControl] CEF CanGoBack: {CanGoBack}", canGoBack);
+            }
+        }
+
+        private void OnCefCanGoForwardChanged(bool canGoForward)
+        {
+            if (_canGoForward != canGoForward)
+            {
+                _canGoForward = canGoForward;
+                _log.Information("[ModernBrowserControl] CEF CanGoForward: {CanGoForward}", canGoForward);
+            }
         }
 
         public void Dispose()
