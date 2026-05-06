@@ -188,6 +188,7 @@ namespace MyBrowser.Driver.Modern
         public event EventHandler<ConsoleMessageEventArgs> ConsoleMessage;
         public event EventHandler<TitleChangedEventArgs> TitleChanged;
         public event EventHandler<AddressChangedEventArgs> AddressChanged;
+        public event EventHandler<string> PopupRequested;
 
         /// <summary>
         /// 设置父窗口句柄并创建浏览器
@@ -404,8 +405,8 @@ namespace MyBrowser.Driver.Modern
 
         private void OnCefPopupRequested(string url)
         {
-            _log.Information("[ModernBrowserControl] CEF Popup intercepted, navigating to: {Url}", url);
-            LoadUrl(url);
+            _log.Information("[ModernBrowserControl] CEF Popup intercepted, URL: {Url}", url);
+            PopupRequested?.Invoke(this, url);
         }
 
         public void Dispose()

@@ -243,5 +243,10 @@ namespace MyBrowser
         /// 地址变更事件
         /// </summary>
         event EventHandler<AddressChangedEventArgs> AddressChanged;
+
+        /// <summary>
+        /// 弹窗请求事件（页面请求打开新窗口）
+        /// </summary>
+        event EventHandler<string> PopupRequested;
     }
 }

@@ -61,6 +61,7 @@ namespace MyBrowser.Demo
                 _browser.AddressChanged += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => UrlTextBox.Text = e.Address);
                 _browser.LoadStart += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => _log.Information("[MainWindow] 开始加载"));
                 _browser.LoadEnd += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => _log.Information($"[MainWindow] 加载结束: {e.HttpStatusCode}"));
+                _browser.PopupRequested += (s, url) => Avalonia.Threading.Dispatcher.UIThread.Post(() => CreateTabWithUrl(url));
 
                 // 加载初始URL
                 _browser.LoadUrl("https://www.baidu.com");
@@ -81,10 +82,21 @@ namespace MyBrowser.Demo
         /// </summary>
         private void CreateNewTab()
         {
+            CreateTabWithUrl("about:blank");
+        }
+
+        /// <summary>
+        /// 创建新标签页并加载指定URL
+        /// </summary>
+        private void CreateTabWithUrl(string url)
+        {
             if (_factory == null) return;
 
             var browser = _factory.CreateControl() as IBrowserControl;
             if (browser == null) return;
+
+            // 订阅弹窗事件 - 新标签页的弹窗也创建新标签
+            browser.PopupRequested += (s, popupUrl) => Avalonia.Threading.Dispatcher.UIThread.Post(() => CreateTabWithUrl(popupUrl));
 
             var tab = new TabItem
             {
@@ -103,7 +115,7 @@ namespace MyBrowser.Demo
             Tabs.Items.Add(tab);
             Tabs.SelectedItem = tab;
 
-            browser.LoadUrl("about:blank");
+            browser.LoadUrl(url);
         }
 
         private BrowserView ActiveBrowser => Tabs.SelectedContent as BrowserView;

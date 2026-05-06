@@ -127,6 +127,7 @@ namespace MyBrowser.Driver.Legacy
         public event EventHandler<ConsoleMessageEventArgs> ConsoleMessage;
         public event EventHandler<TitleChangedEventArgs> TitleChanged;
         public event EventHandler<AddressChangedEventArgs> AddressChanged;
+        public event EventHandler<string> PopupRequested;
 
         public void SetWindowHandle(IntPtr hwnd)
         {
