@@ -49,8 +49,8 @@ namespace MyBrowser.Demo
 
         private static void ResetLogFile()
         {
-            var logFile = @"F:\mybrowser.log";
-            var debugFile = @"F:\cef_debug.log";
+            var logFile = LogHelper.GetLogPath();
+            var debugFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
             try
             {
                 if (File.Exists(logFile))

@@ -12,7 +12,7 @@ namespace MyBrowser.Interop
     /// </summary>
     public sealed unsafe class CefRuntime
     {
-        private static readonly string _logFile = @"F:\mybrowser.log";
+        private static readonly string _logFile = LogHelper.GetLogPath();
         private static bool _initialized;
         private static bool _shutdown;
         private static CefRuntime? _instance;

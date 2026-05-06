@@ -5,6 +5,7 @@ namespace MyBrowser.Interop
     using System.Threading;
     using MyBrowser.Interop.cef.capi;
     using Serilog;
+    using System.Runtime.CompilerServices;
 
     /// <summary>
     /// CEF 应用对象，实现 cef_app_t 和 cef_browser_process_handler_t。
@@ -15,7 +16,7 @@ namespace MyBrowser.Interop
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(@"F:\mybrowser.log", shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath(), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         // App ref-count (for cef_app_t)
@@ -46,6 +47,7 @@ namespace MyBrowser.Interop
         private cef_base_has_at_least_one_ref _bphHasAtLeastOneRef;
         private cef_app_get_browser_process_handler _getBrowserProcessHandler;
         private cef_browser_process_handler_on_context_initialized _onContextInitialized;
+        private cef_app_on_before_command_line_processing _onBeforeCommandLineProcessing;
 
         public event EventHandler? ContextInitialized;
         public IntPtr Handle => _appPtr;
@@ -69,6 +71,7 @@ namespace MyBrowser.Interop
 
             _getBrowserProcessHandler = GetBrowserProcessHandler;
             _onContextInitialized = OnContextInitialized;
+            _onBeforeCommandLineProcessing = OnBeforeCommandLineProcessing;
 
             // --- cef_browser_process_handler_t ---
             _browserProcessHandler = new cef_browser_process_handler_t
@@ -102,7 +105,7 @@ namespace MyBrowser.Interop
                     has_one_ref = Marshal.GetFunctionPointerForDelegate(_appHasOneRef),
                     has_at_least_one_ref = Marshal.GetFunctionPointerForDelegate(_appHasAtLeastOneRef)
                 },
-                on_before_command_line_processing = IntPtr.Zero,
+                on_before_command_line_processing = Marshal.GetFunctionPointerForDelegate(_onBeforeCommandLineProcessing),
                 on_register_custom_schemes = IntPtr.Zero,
                 get_resource_bundle_handler = IntPtr.Zero,
                 get_browser_process_handler = Marshal.GetFunctionPointerForDelegate(_getBrowserProcessHandler),
@@ -162,6 +165,37 @@ namespace MyBrowser.Interop
         {
             _log.Information("[CefApp] OnContextInitialized - CEF context is ready");
             ContextInitialized?.Invoke(this, EventArgs.Empty);
+        }
+
+        private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
+        {
+            _log.Information("[CefApp] OnBeforeCommandLineProcessing - Disabling GPU for Win7 compatibility");
+            
+            // 禁用 GPU 硬件加速，防止 Win7 上出现渲染崩溃
+            CommandLineAppendSwitch(commandLine, "disable-gpu");
+            CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+            CommandLineAppendSwitch(commandLine, "disable-software-rasterizer");
+        }
+
+        private static unsafe void CommandLineAppendSwitch(cef_command_line_t* commandLine, string switchName)
+        {
+            if (commandLine == null) return;
+            
+            // append_switch is at vtable offset 112
+            var ptr = new IntPtr((byte*)commandLine + 112);
+            var funcPtr = Marshal.ReadIntPtr((IntPtr)commandLine, 112);
+            if (funcPtr == IntPtr.Zero) return;
+
+            var appendSwitch = Marshal.GetDelegateForFunctionPointer<cef_command_line_append_switch>(funcPtr);
+            
+            var cefStr = stackalloc cef_string_t[1];
+            fixed (char* chars = switchName)
+            {
+                cefStr->str = chars;
+                cefStr->length = (UIntPtr)switchName.Length;
+                cefStr->dtor = IntPtr.Zero;
+                appendSwitch((IntPtr)commandLine, cefStr);
+            }
         }
 
         // ===== Disposal - only called during Shutdown =====

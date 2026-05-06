@@ -424,6 +424,28 @@ namespace MyBrowser.Interop.cef.capi
 
     #region App
 
+    // CEF 109 cef_command_line_t
+    public unsafe struct cef_command_line_t
+    {
+        public cef_base_ref_counted_t base_;
+        // vtable offsets (64-bit):
+        // 40: is_valid
+        // 48: is_read_only
+        // 56: get_object
+        // 64: get_command_line_string
+        // 72: get_program
+        // 80: get_arguments
+        // 88: has_switch
+        // 96: get_switch_value
+        // 104: get_flags
+        // 112: append_switch
+        // 120: append_switch_with_value
+    }
+
+    public unsafe delegate void cef_command_line_append_switch(IntPtr self, cef_string_t* name);
+    public unsafe delegate void cef_command_line_append_switch_with_value(IntPtr self, cef_string_t* name, cef_string_t* value);
+    public unsafe delegate void cef_app_on_before_command_line_processing(IntPtr self, cef_string_t* process_type, cef_command_line_t* command_line);
+
     // CEF 109 cef_app_t from cef_app_capi.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_app_t
