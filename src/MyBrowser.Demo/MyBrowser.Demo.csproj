@@ -16,5 +16,19 @@
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Dispatcher\MyBrowser.Dispatcher.csproj" />
         <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
+        <ProjectReference Include="..\MyBrowser.Driver.Modern\MyBrowser.Driver.Modern.csproj" />
     </ItemGroup>
+
+    <!-- 发布时自动复制 CEF 资源文件 -->
+    <Target Name="CopyCefResources" BeforeTargets="Publish">
+        <PropertyGroup>
+            <CefSourceDir>$(MSBuildThisFileDirectory)bin\Debug\net8.0\runtimes\Modern\</CefSourceDir>
+            <CefPublishDir>$(PublishDir)</CefPublishDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <CefFiles Include="$(CefSourceDir)**\*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+        <Message Text="CEF resources copied to: $(CefPublishDir)" Importance="high" />
+    </Target>
 </Project>
