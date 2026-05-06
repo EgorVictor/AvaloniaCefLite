@@ -241,7 +241,6 @@ namespace MyBrowser.Demo
                 return;
             }
 
-            _log.Information("[BrowserView] UpdateNativeBounds called, _browser={Browser}", _browser != null ? "exists" : "null");
             var topLevel = TopLevel.GetTopLevel(this);
             var origin = topLevel == null ? null : this.TranslatePoint(new Point(0, 0), topLevel);
             if (topLevel == null || origin == null)
@@ -254,6 +253,9 @@ namespace MyBrowser.Demo
             var y = (int)Math.Round(origin.Value.Y * scale);
             var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
             var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
+
+            _log.Information("[BrowserView] UpdateNativeBounds: pos={X},{Y} size={W}x{H} scale={Scale} bounds={BoundsW}x{BoundsH}",
+                x, y, width, height, scale, Bounds.Width, Bounds.Height);
 
             SetWindowPos(
                 _containerHwnd,
