@@ -69,12 +69,12 @@ namespace MyBrowser.Interop
                 return false;
             }
 
-            // 使用 WS_CHILD 样式将浏览器嵌入父窗口
+            // 使用 WS_CHILD | WS_VISIBLE 样式将浏览器嵌入父窗口 (参考 CefSharp SetAsChild)
             var windowInfo = new cef_window_info_t
             {
                 ex_style = 0,
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000,
+                style = 0x40000000 | 0x10000000,  // WS_CHILD | WS_VISIBLE
                 bounds = new cef_rect_t
                 {
                     x = 0,
@@ -105,14 +105,19 @@ namespace MyBrowser.Interop
                 fixed (cef_browser_settings_t* settingsPtr = &_settings)
                 {
                     _log.Information("[CefBrowserFactory] Calling cef_browser_host_create_browser...");
+                    _log.Information("[CefBrowserFactory]   clientPtr = {ClientPtr}", (long)clientPtr);
+                    _log.Information("[CefBrowserFactory]   url.str = {UrlStr}, url.length = {UrlLen}", (long)url.str, (ulong)url.length);
+                    _log.Information("[CefBrowserFactory]   settingsPtr = {SettingsPtr}", (long)settingsPtr);
+                    _log.Information("[CefBrowserFactory]   windowInfo.parent_window = {ParentHwnd}", windowInfo.parent_window);
+                    _log.Information("[CefBrowserFactory]   windowInfo.size = {WinInfoSize}", sizeof(cef_window_info_t));
 
                     var result = NativeMethods.cef_browser_host_create_browser(
                         &windowInfo,
                         clientPtr,
                         &url,
                         settingsPtr,
-                        IntPtr.Zero,
-                        IntPtr.Zero);
+                        IntPtr.Zero,  // extra_info
+                        IntPtr.Zero); // request_context
 
                     _log.Information("[CefBrowserFactory] Result: {Result}", result);
 
@@ -197,8 +202,8 @@ namespace MyBrowser.Interop
                         clientPtr,
                         &url,
                         settingsPtr,
-                        IntPtr.Zero,
-                        IntPtr.Zero);
+                        IntPtr.Zero,  // extra_info
+                        IntPtr.Zero); // request_context
 
                     if (browserPtr != IntPtr.Zero)
                     {
@@ -370,12 +375,46 @@ namespace MyBrowser.Interop
             {
                 size = (UIntPtr)sizeof(cef_browser_settings_t),
                 windowless_frame_rate = 30,
-                javascript = 1,
-                local_storage = 1,
-                databases = 1,
-                webgl = 1,
-                background_color = 0xFFFFFFFF
+                standard_font_family = new cef_string_t(),
+                fixed_font_family = new cef_string_t(),
+                serif_font_family = new cef_string_t(),
+                sans_serif_font_family = new cef_string_t(),
+                cursive_font_family = new cef_string_t(),
+                fantasy_font_family = new cef_string_t(),
+                default_font_size = 0,
+                default_fixed_font_size = 0,
+                minimum_font_size = 0,
+                minimum_logical_font_size = 0,
+                default_encoding = new cef_string_t(),
+                remote_fonts = cef_state_t.STATE_DEFAULT,
+                javascript = cef_state_t.STATE_ENABLED,
+                javascript_close_windows = cef_state_t.STATE_DEFAULT,
+                javascript_access_clipboard = cef_state_t.STATE_DEFAULT,
+                javascript_dom_paste = cef_state_t.STATE_DEFAULT,
+                image_loading = cef_state_t.STATE_DEFAULT,
+                image_shrink_standalone_to_fit = cef_state_t.STATE_DEFAULT,
+                text_area_resize = cef_state_t.STATE_DEFAULT,
+                tab_to_links = cef_state_t.STATE_DEFAULT,
+                local_storage = cef_state_t.STATE_DEFAULT,
+                databases = cef_state_t.STATE_DEFAULT,
+                webgl = cef_state_t.STATE_DEFAULT,
+                background_color = 0xFFFFFFFF,
+                accept_language_list = new cef_string_t(),
+                chrome_status_bubble = cef_state_t.STATE_DEFAULT
             };
+        }
+
+        public void NotifyBrowserResized()
+        {
+            if (_browserHostHandle == IntPtr.Zero)
+            {
+                _log.Information("[CefBrowserFactory] NotifyBrowserResized skipped - host handle is zero");
+                return;
+            }
+
+            // For windowed rendering mode, SetWindowPos handles the window positioning.
+            // No additional CEF notification is needed for windowed browsers.
+            _log.Information("[CefBrowserFactory] NotifyBrowserResized completed (windowed mode - no action needed)");
         }
 
         public void Dispose()

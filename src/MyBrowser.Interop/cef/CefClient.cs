@@ -149,7 +149,11 @@ namespace MyBrowser.Interop.cef
         private IntPtr GetJsDialogHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetKeyboardHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetLifeSpanHandler(IntPtr self) => _lifeSpanHandler.Handle;
-        private IntPtr GetLoadHandler(IntPtr self) => _loadHandler.Handle;
+        private IntPtr GetLoadHandler(IntPtr self)
+        {
+            _log.Information("[CefClient] GetLoadHandler called, returning: {Handler}", _loadHandler.Handle);
+            return _loadHandler.Handle;
+        }
         private IntPtr GetPrintHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetRenderHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetRequestHandler(IntPtr self) => IntPtr.Zero;
@@ -314,12 +318,10 @@ namespace MyBrowser.Interop.cef
         private int Release(IntPtr self)
         {
             int newCount = Interlocked.Decrement(ref _refCount);
-            if (newCount == 0)
-            {
-                Dispose();
-                return 1;
-            }
-            return 0;
+            _log.Information("[CefLifeSpanHandler] Release -> {RefCount}", newCount);
+            // Never call Dispose() here - let CEF manage the lifetime.
+            // This handler will be disposed when CefClient.Dispose() is called.
+            return (newCount == 0) ? 1 : 0;
         }
 
         private int HasOneRef(IntPtr self) => _refCount == 1 ? 1 : 0;
@@ -334,9 +336,36 @@ namespace MyBrowser.Interop.cef
 
         private void OnAfterCreated(IntPtr self, IntPtr browser)
         {
-            var host = browser != IntPtr.Zero ? NativeMethods.cef_browser_get_host(browser) : IntPtr.Zero;
-            _log.Information("[CefLifeSpanHandler] OnAfterCreated, Browser: {Browser}, Host: {Host}", browser, host);
+            IntPtr host = IntPtr.Zero;
+            if (browser != IntPtr.Zero)
+            {
+                var ptr40 = Marshal.ReadIntPtr(browser, 40);
+                var ptr48 = Marshal.ReadIntPtr(browser, 48);
+                _log.Information("[CefLifeSpanHandler] OnAfterCreated, Browser: {Browser}, Ptr[40]={P40}, Ptr[48]={P48}",
+                    browser, ptr40, ptr48);
+
+                host = CallBrowserGetHost(browser);
+                _log.Information("[CefLifeSpanHandler] OnAfterCreated, Host: {Host}", host);
+            }
+            else
+            {
+                _log.Information("[CefLifeSpanHandler] OnAfterCreated with null browser");
+            }
             _parent.OnBrowserCreated(browser, host);
+        }
+
+        private static IntPtr CallBrowserGetHost(IntPtr browser)
+        {
+            // cef_base_ref_counted_t = 40 bytes (5 IntPtr fields)
+            // is_valid at offset 40, get_host at offset 48
+            var getHostPtr = Marshal.ReadIntPtr(browser, 48);
+            if (getHostPtr == IntPtr.Zero)
+            {
+                _log.Warning("[CefLifeSpanHandler] get_host pointer is null!");
+                return IntPtr.Zero;
+            }
+            var getHost = Marshal.GetDelegateForFunctionPointer<cef_browser_get_host>(getHostPtr);
+            return getHost(browser);
         }
 
         private int DoClose(IntPtr self, IntPtr browser)
@@ -436,25 +465,38 @@ namespace MyBrowser.Interop.cef
             _log.Information("[CefLoadHandler] Created");
         }
 
-        private void AddRef(IntPtr self) => Interlocked.Increment(ref _refCount);
+        private void AddRef(IntPtr self)
+        {
+            var newCount = Interlocked.Increment(ref _refCount);
+            _log.Information("[CefLoadHandler] AddRef -> {RefCount}", newCount);
+        }
 
         private int Release(IntPtr self)
         {
-            int newCount = Interlocked.Decrement(ref _refCount);
-            if (newCount == 0)
-            {
-                Dispose();
-                return 1;
-            }
-            return 0;
+            var newCount = Interlocked.Decrement(ref _refCount);
+            _log.Information("[CefLoadHandler] Release -> {RefCount}", newCount);
+            // Never call Dispose() here - let CEF manage the lifetime.
+            // This handler will be disposed when CefClient.Dispose() is called.
+            return (newCount == 0) ? 1 : 0;
         }
 
-        private int HasOneRef(IntPtr self) => _refCount == 1 ? 1 : 0;
-        private int HasAtLeastOneRef(IntPtr self) => _refCount >= 1 ? 1 : 0;
+        private int HasOneRef(IntPtr self)
+        {
+            var result = _refCount == 1 ? 1 : 0;
+            _log.Information("[CefLoadHandler] HasOneRef -> {Result} (refCount={RefCount})", result, _refCount);
+            return result;
+        }
+
+        private int HasAtLeastOneRef(IntPtr self)
+        {
+            var result = _refCount >= 1 ? 1 : 0;
+            _log.Information("[CefLoadHandler] HasAtLeastOneRef -> {Result} (refCount={RefCount})", result, _refCount);
+            return result;
+        }
 
         private void OnLoadingStateChange(IntPtr self, IntPtr browser, int isLoading, int canGoBack, int canGoForward)
         {
-            _log.Information("[CefLoadHandler] OnLoadingStateChange: isLoading={IsLoading}, canGoBack={CanGoBack}, canGoForward={CanGoForward}", isLoading, canGoBack, canGoForward);
+            _log.Information("[CefLoadHandler] OnLoadingStateChange: self={Self}, isLoading={IsLoading}, canGoBack={CanGoBack}, canGoForward={CanGoForward}", self, isLoading, canGoBack, canGoForward);
             _parent.OnLoadingStateChanged(isLoading != 0);
             _parent.OnCanGoBackChanged(canGoBack != 0);
             _parent.OnCanGoForwardChanged(canGoForward != 0);
@@ -462,7 +504,7 @@ namespace MyBrowser.Interop.cef
 
         private void OnLoadStart(IntPtr self, IntPtr browser, IntPtr frame, int transitionType)
         {
-            _log.Information("[CefLoadHandler] OnLoadStart");
+            _log.Information("[CefLoadHandler] OnLoadStart: self={Self}, browser={Browser}, frame={Frame}", self, browser, frame);
             _parent.OnLoadStart();
         }
 

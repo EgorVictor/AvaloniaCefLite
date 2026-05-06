@@ -147,7 +147,10 @@ namespace MyBrowser.Demo
         {
             _browser = browser;
             _parentWindow = parentWindow;
-            
+
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+
             if (_browser == null)
             {
                 return;
@@ -218,11 +221,17 @@ namespace MyBrowser.Demo
             UpdateNativeBounds();
         }
 
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            var width = double.IsInfinity(availableSize.Width) ? 800 : availableSize.Width;
+            var height = double.IsInfinity(availableSize.Height) ? 600 : availableSize.Height;
+            return new Size(width, height);
+        }
+
         protected override Size ArrangeOverride(Size finalSize)
         {
-            var size = base.ArrangeOverride(finalSize);
             UpdateNativeBounds();
-            return size;
+            return finalSize;
         }
 
         private void UpdateNativeBounds()
@@ -232,6 +241,7 @@ namespace MyBrowser.Demo
                 return;
             }
 
+            _log.Information("[BrowserView] UpdateNativeBounds called, _browser={Browser}", _browser != null ? "exists" : "null");
             var topLevel = TopLevel.GetTopLevel(this);
             var origin = topLevel == null ? null : this.TranslatePoint(new Point(0, 0), topLevel);
             if (topLevel == null || origin == null)
@@ -253,6 +263,12 @@ namespace MyBrowser.Demo
                 width,
                 height,
                 SWP_NOZORDER | SWP_NOACTIVATE);
+
+            // 通知浏览器大小已改变（仅在浏览器已创建时）
+            if (_browser != null)
+            {
+                (_browser as IBrowserControl)?.NotifyResized();
+            }
         }
 
         private void TryCreateBrowser()

@@ -177,6 +177,11 @@ namespace MyBrowser.Driver.Legacy
             // TODO: CefBrowserHost.ExecuteJavaScript(script, url, 0);
         }
 
+        public void NotifyResized()
+        {
+            _log.Information("[LegacyBrowserControl] NotifyResized (not implemented)");
+        }
+
         public void Dispose()
         {
             _log.Information("[LegacyBrowserControl] 已释放");

@@ -191,14 +191,36 @@ namespace MyBrowser.Driver.Modern
         /// <summary>
         /// 设置父窗口句柄并创建浏览器
         /// </summary>
+        /// <summary>
+        /// 设置父窗口句柄并创建浏览器
+        /// </summary>
         public void SetWindowHandle(IntPtr parentHwnd)
         {
             _windowHandle = parentHwnd;
             _log.Information("[ModernBrowserControl] 设置窗口句柄: {HWND}", parentHwnd);
 
-            // 如果已经有URL，则创建浏览器
+            // 如果已经有URL，且 CEF 上下文已初始化，则创建浏览器
             if (_windowHandle != IntPtr.Zero && !string.IsNullOrEmpty(_url))
             {
+                if (CefRuntime.IsInitialized)
+                {
+                    CreateBrowser();
+                }
+                else
+                {
+                    // 等待 CEF 上下文初始化完成
+                    _log.Information("[ModernBrowserControl] CEF 上下文未初始化，等待 ContextInitialized");
+                    CefRuntime.ContextInitialized += OnCefContextInitialized;
+                }
+            }
+        }
+
+        private void OnCefContextInitialized(object? sender, EventArgs e)
+        {
+            CefRuntime.ContextInitialized -= OnCefContextInitialized;
+            if (_windowHandle != IntPtr.Zero && !string.IsNullOrEmpty(_url) && _browserHandle == IntPtr.Zero)
+            {
+                _log.Information("[ModernBrowserControl] CEF 上下文已就绪，创建浏览器");
                 CreateBrowser();
             }
         }
@@ -241,7 +263,15 @@ namespace MyBrowser.Driver.Modern
             // 如果窗口句柄已设置但浏览器还未创建，则创建浏览器
             if (_windowHandle != IntPtr.Zero && _browserHandle == IntPtr.Zero)
             {
-                CreateBrowser();
+                if (CefRuntime.IsInitialized)
+                {
+                    CreateBrowser();
+                }
+                else
+                {
+                    _log.Information("[ModernBrowserControl] CEF 上下文未初始化，等待 ContextInitialized 后创建");
+                    CefRuntime.ContextInitialized += OnCefContextInitialized;
+                }
                 return;
             }
 
@@ -295,6 +325,14 @@ namespace MyBrowser.Driver.Modern
             if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _browserFactory.ExecuteJavaScript(script, _url, 0);
+            }
+        }
+
+        public void NotifyResized()
+        {
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
+            {
+                _browserFactory.NotifyBrowserResized();
             }
         }
 

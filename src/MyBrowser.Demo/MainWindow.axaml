@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MyBrowser.Demo.MainWindow"
         Title="MyBrowser Demo"
-        Width="900"
-        Height="650"
+        Width="1920"
+        Height="1080"
         WindowState="Normal">
     <DockPanel>
         <Menu DockPanel.Dock="Top">

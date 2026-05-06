@@ -23,9 +23,16 @@ namespace MyBrowser.Interop
             .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
+        private static CefApp? _app;
+
         public static CefRuntime Instance => _instance ??= new CefRuntime();
         public static bool IsInitialized => _initialized;
         public static bool IsShutdown => _shutdown;
+
+        /// <summary>
+        /// CEF 上下文初始化完成事件。浏览器创建必须在此事件之后进行。
+        /// </summary>
+        public static event EventHandler? ContextInitialized;
 
         public static int ExecuteMainProcess(IntPtr instanceHandle)
         {
@@ -59,10 +66,10 @@ namespace MyBrowser.Interop
                     persist_session_cookies = 0,
                     persist_user_preferences = 0,
                     pack_loading_disabled = 0,
-                    remote_debugging_port = 0,
+                    remote_debugging_port = 9222,
                     uncaught_exception_stack_size = 0,
                     background_color = 0xFFFFFFFF,
-                    log_severity = 3,
+                    log_severity = 0, // verbose
                     cookieable_schemes_exclude_defaults = 0
                 };
 
@@ -94,13 +101,16 @@ namespace MyBrowser.Interop
                     _log.Information("[CefRuntime] WARNING: No locales directory found");
                 }
 
-                var app = new cef_app_t
+                SetCefString(ref settings.log_file, @"F:\cef_debug.log");
+
+                _app = new CefApp();
+                _app.ContextInitialized += (s, e) =>
                 {
-                    base_ = new cef_base_t
-                    {
-                        size = (UIntPtr)sizeof(cef_app_t)
-                    }
+                    _log.Information("[CefRuntime] Forwarding ContextInitialized event");
+                    ContextInitialized?.Invoke(s, e);
                 };
+
+                cef_app_t* appPtr = (cef_app_t*)_app.Handle;
 
                 var args = new cef_main_args_t { instance = instanceHandle };
 
@@ -110,7 +120,7 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] settings.resources_dir = {ResourcesDir}", GetString(settings.resources_dir_path));
                 _log.Information("[CefRuntime] settings.locales_dir = {LocalesDir}", GetString(settings.locales_dir_path));
 
-                int result = NativeMethods.cef_initialize(&args, &settings, null, IntPtr.Zero);
+                int result = NativeMethods.cef_initialize(&args, &settings, appPtr, IntPtr.Zero);
                 _log.Information("[CefRuntime] cef_initialize returned: {0}", result);
 
                 if (result != 0)
@@ -161,6 +171,8 @@ namespace MyBrowser.Interop
             if (!_initialized || _shutdown) return;
 
             _log.Information("[CefRuntime] Shutting down CEF...");
+            _app?.Dispose();
+            _app = null;
             NativeMethods.cef_shutdown();
             _shutdown = true;
             _initialized = false;

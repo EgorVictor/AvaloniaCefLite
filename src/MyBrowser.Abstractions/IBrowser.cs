@@ -203,7 +203,12 @@ namespace MyBrowser
         /// 停止加载
         /// </summary>
         void Stop();
-        
+
+        /// <summary>
+        /// 通知浏览器窗口大小已改变
+        /// </summary>
+        void NotifyResized();
+
         /// <summary>
         /// 执行JavaScript
         /// </summary>

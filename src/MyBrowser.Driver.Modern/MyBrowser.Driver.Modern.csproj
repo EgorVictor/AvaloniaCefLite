@@ -7,6 +7,11 @@
         <OutputPath>$(MSBuildThisFileDirectory)..\MyBrowser.Demo\bin\$(Configuration)\net8.0\Runtimes\Modern\</OutputPath>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="src\MyBrowser.Demo\bin\**" />
+      <EmbeddedResource Remove="src\MyBrowser.Demo\bin\**" />
+      <None Remove="src\MyBrowser.Demo\bin\**" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Serilog" Version="4.0.0" />
@@ -15,17 +20,19 @@
         <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="src\MyBrowser.Demo\" />
+    </ItemGroup>
+
     <!-- 构建前验证输出目录 -->
     <Target Name="VerifyPhysicalIsolation" BeforeTargets="Build">
-        <Message Text="Modern 驱动输出: $(OutputPath)" Importance="high"/>
+        <Message Text="Modern 驱动输出: $(OutputPath)" Importance="high" />
         <MakeDir Directories="$(OutputPath)" />
     </Target>
 
     <!-- 构建后将驱动复制到 Runtimes 文件夹 -->
     <Target Name="CopyToRuntimes" AfterTargets="PostBuild">
-        <Copy SourceFiles="$(TargetPath)" 
-              DestinationFolder="$(OutputPath)" 
-              SkipUnchangedFiles="true" />
-        <Message Text="Modern 驱动已复制到: $(OutputPath)" Importance="high"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+        <Message Text="Modern 驱动已复制到: $(OutputPath)" Importance="high" />
     </Target>
 </Project>

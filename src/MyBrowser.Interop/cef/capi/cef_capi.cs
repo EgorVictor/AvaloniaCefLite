@@ -16,6 +16,27 @@ namespace MyBrowser.Interop.cef.capi
     public unsafe delegate int cef_base_ref_counted_has_one_ref(IntPtr self);
     public unsafe delegate int cef_base_ref_counted_has_at_least_one_ref(IntPtr self);
 
+    // CEF 109 cef_state_t enum (represents state of a setting)
+    public enum cef_state_t : int
+    {
+        STATE_DEFAULT = 0,
+        STATE_ENABLED = 1,
+        STATE_DISABLED = 2
+    }
+
+    // CEF 109 cef_log_severity_t enum
+    public enum cef_log_severity_t : int
+    {
+        LOGSEVERITY_DEFAULT = 0,
+        LOGSEVERITY_VERBOSE = 1,
+        LOGSEVERITY_DEBUG = 1,
+        LOGSEVERITY_INFO = 2,
+        LOGSEVERITY_WARNING = 3,
+        LOGSEVERITY_ERROR = 4,
+        LOGSEVERITY_FATAL = 5,
+        LOGSEVERITY_DISABLE = 99
+    }
+
     // CEF 109 cef_base_ref_counted_t
     [StructLayout(LayoutKind.Sequential)]
     public struct cef_base_ref_counted_t
@@ -50,6 +71,9 @@ namespace MyBrowser.Interop.cef.capi
     }
 
     public unsafe delegate int cef_stringvisitor_visit(IntPtr self, cef_string_t* str);
+    public unsafe delegate IntPtr cef_browser_get_host(IntPtr browser);
+    public unsafe delegate void cef_browser_host_was_resized(IntPtr host);
+    public unsafe delegate void cef_browser_host_notify_move_or_resize_started(IntPtr host);
 
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct _cef_string_visitor_t
@@ -65,13 +89,46 @@ namespace MyBrowser.Interop.cef.capi
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_browser_t
     {
-        public cef_base_t base_;
+        public cef_base_ref_counted_t base_;
+        public IntPtr is_valid;
+        public IntPtr get_host;
+        public IntPtr can_go_back;
+        public IntPtr go_back;
+        public IntPtr can_go_forward;
+        public IntPtr go_forward;
+        public IntPtr is_loading;
+        public IntPtr reload;
+        public IntPtr reload_ignore_cache;
+        public IntPtr stop_load;
+        public IntPtr get_identifier;
+        public IntPtr is_same;
+        public IntPtr is_popup;
+        public IntPtr has_document;
+        public IntPtr get_main_frame;
+        public IntPtr get_focused_frame;
+        public IntPtr get_frame_byident;
+        public IntPtr get_frame;
+        public IntPtr get_frame_count;
+        public IntPtr get_frame_identifiers;
+        public IntPtr get_frame_names;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_browser_host_t
     {
-        public cef_base_t base_;
+        public cef_base_ref_counted_t base_;
+        public IntPtr get_browser;
+        public IntPtr close_browser;
+        public IntPtr try_close_browser;
+        public IntPtr set_focus;
+        public IntPtr get_window_handle;
+        public IntPtr get_opener_window_handle;
+        public IntPtr has_view;
+        public IntPtr get_client;
+        public IntPtr get_request_context;
+        public IntPtr get_zoom_level;
+        public IntPtr set_zoom_level;
+        // ... more functions
     }
 
     #endregion
@@ -219,6 +276,7 @@ namespace MyBrowser.Interop.cef.capi
 
     #region Browser Settings
 
+    // CEF 109 cef_browser_settings_t from cef_types.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_browser_settings_t
     {
@@ -231,23 +289,25 @@ namespace MyBrowser.Interop.cef.capi
         public cef_string_t cursive_font_family;
         public cef_string_t fantasy_font_family;
         public int default_font_size;
-        public int default_font_family;
+        public int default_fixed_font_size;
         public int minimum_font_size;
         public int minimum_logical_font_size;
         public cef_string_t default_encoding;
-        public int remote_fonts;
-        public int javascript;
-        public int javascript_close_windows;
-        public int javascript_access_clipboard;
-        public int javascript_dom_paste;
-        public int javascript_ui;
-        public int local_storage;
-        public int databases;
-        public int webgl;
+        public cef_state_t remote_fonts;
+        public cef_state_t javascript;
+        public cef_state_t javascript_close_windows;
+        public cef_state_t javascript_access_clipboard;
+        public cef_state_t javascript_dom_paste;
+        public cef_state_t image_loading;
+        public cef_state_t image_shrink_standalone_to_fit;
+        public cef_state_t text_area_resize;
+        public cef_state_t tab_to_links;
+        public cef_state_t local_storage;
+        public cef_state_t databases;
+        public cef_state_t webgl;
         public uint background_color;
-        public int accept_ssl_certificates;
-        public int spellcheck;
-        public int spellcheck_dictionaries;
+        public cef_string_t accept_language_list;
+        public cef_state_t chrome_status_bubble;
     }
 
     #endregion
@@ -293,6 +353,7 @@ namespace MyBrowser.Interop.cef.capi
 
     #region Settings
 
+    // CEF 109 cef_settings_t from cef_types.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_settings_t
     {
@@ -315,7 +376,7 @@ namespace MyBrowser.Interop.cef.capi
         public cef_string_t user_agent_product;
         public cef_string_t locale;
         public cef_string_t log_file;
-        public int log_severity;
+        public cef_log_severity_t log_severity;
         public cef_string_t javascript_flags;
         public cef_string_t resources_dir_path;
         public cef_string_t locales_dir_path;
@@ -332,16 +393,28 @@ namespace MyBrowser.Interop.cef.capi
 
     #region App
 
+    // CEF 109 cef_app_t from cef_app_capi.h
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_app_t
     {
-        public cef_base_t base_;
+        public cef_base_ref_counted_t base_;
         public IntPtr on_before_command_line_processing;
-        public IntPtr on_render_process_thread_created;
-        public IntPtr on_web_view_created;
+        public IntPtr on_register_custom_schemes;
+        public IntPtr get_resource_bundle_handler;
+        public IntPtr get_browser_process_handler;
+        public IntPtr get_render_process_handler;
+    }
+
+    // CEF 109 cef_browser_process_handler_t from cef_browser_process_handler_capi.h
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct cef_browser_process_handler_t
+    {
+        public cef_base_ref_counted_t base_;
+        public IntPtr on_register_custom_preferences;
         public IntPtr on_context_initialized;
-        public IntPtr on_before_cookies;
-        public IntPtr get_auth_credentials;
+        public IntPtr on_before_child_process_launch;
+        public IntPtr on_schedule_message_pump_work;
+        public IntPtr get_default_client;
     }
 
     #endregion
@@ -397,9 +470,6 @@ namespace MyBrowser.Interop.cef.capi
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_execute_javascript")]
         public static extern void cef_browser_host_execute_javascript(IntPtr host, cef_string_t* code, cef_string_t* url, int line);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_was_resized")]
-        public static extern void cef_browser_host_was_resized(IntPtr host);
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_get_size")]
         public static extern void cef_browser_host_get_size(IntPtr host, int* width, int* height);
