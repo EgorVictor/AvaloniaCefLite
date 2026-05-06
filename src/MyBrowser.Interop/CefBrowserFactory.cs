@@ -235,10 +235,11 @@ namespace MyBrowser.Interop
         /// </summary>
         public void GoBack()
         {
-            if (_browserHostHandle != IntPtr.Zero)
-            {
-                NativeMethods.cef_browser_host_go_back(_browserHostHandle);
-            }
+            if (BrowserHandle == IntPtr.Zero) return;
+            // cef_browser_t vtable: go_back = offset 64
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, 64);
+            if (ptr != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<cef_browser_go_back>(ptr)(BrowserHandle);
         }
 
         /// <summary>
@@ -246,10 +247,11 @@ namespace MyBrowser.Interop
         /// </summary>
         public void GoForward()
         {
-            if (_browserHostHandle != IntPtr.Zero)
-            {
-                NativeMethods.cef_browser_host_go_forward(_browserHostHandle);
-            }
+            if (BrowserHandle == IntPtr.Zero) return;
+            // cef_browser_t vtable: go_forward = offset 80
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, 80);
+            if (ptr != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<cef_browser_go_forward>(ptr)(BrowserHandle);
         }
 
         /// <summary>
@@ -257,10 +259,11 @@ namespace MyBrowser.Interop
         /// </summary>
         public void Reload()
         {
-            if (_browserHostHandle != IntPtr.Zero)
-            {
-                NativeMethods.cef_browser_host_reload(_browserHostHandle);
-            }
+            if (BrowserHandle == IntPtr.Zero) return;
+            // cef_browser_t vtable: reload = offset 96
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, 96);
+            if (ptr != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<cef_browser_reload>(ptr)(BrowserHandle);
         }
 
         /// <summary>
@@ -268,10 +271,11 @@ namespace MyBrowser.Interop
         /// </summary>
         public void ReloadIgnoreCache()
         {
-            if (_browserHostHandle != IntPtr.Zero)
-            {
-                NativeMethods.cef_browser_host_reload_ignore_cache(_browserHostHandle);
-            }
+            if (BrowserHandle == IntPtr.Zero) return;
+            // cef_browser_t vtable: reload_ignore_cache = offset 104
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, 104);
+            if (ptr != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<cef_browser_reload_ignore_cache>(ptr)(BrowserHandle);
         }
 
         /// <summary>
@@ -279,10 +283,11 @@ namespace MyBrowser.Interop
         /// </summary>
         public void StopLoad()
         {
-            if (_browserHostHandle != IntPtr.Zero)
-            {
-                NativeMethods.cef_browser_host_stop_load(_browserHostHandle);
-            }
+            if (BrowserHandle == IntPtr.Zero) return;
+            // cef_browser_t vtable: stop_load = offset 112
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, 112);
+            if (ptr != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<cef_browser_stop_load>(ptr)(BrowserHandle);
         }
 
         /// <summary>

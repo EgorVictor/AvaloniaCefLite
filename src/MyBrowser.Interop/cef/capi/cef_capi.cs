@@ -77,6 +77,11 @@ namespace MyBrowser.Interop.cef.capi
     public unsafe delegate IntPtr cef_browser_host_get_window_handle(IntPtr host);
     public unsafe delegate IntPtr cef_browser_get_main_frame(IntPtr browser);
     public unsafe delegate void cef_frame_load_url(IntPtr frame, cef_string_t* url);
+    public delegate void cef_browser_go_back(IntPtr browser);
+    public delegate void cef_browser_go_forward(IntPtr browser);
+    public delegate void cef_browser_reload(IntPtr browser);
+    public delegate void cef_browser_reload_ignore_cache(IntPtr browser);
+    public delegate void cef_browser_stop_load(IntPtr browser);
 
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct _cef_string_visitor_t
@@ -452,21 +457,6 @@ namespace MyBrowser.Interop.cef.capi
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_close_browser")]
         public static extern void cef_browser_host_close_browser(IntPtr host, int force_close);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_go_back")]
-        public static extern void cef_browser_host_go_back(IntPtr host);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_go_forward")]
-        public static extern void cef_browser_host_go_forward(IntPtr host);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_reload")]
-        public static extern void cef_browser_host_reload(IntPtr host);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_reload_ignore_cache")]
-        public static extern void cef_browser_host_reload_ignore_cache(IntPtr host);
-
-        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_stop_load")]
-        public static extern void cef_browser_host_stop_load(IntPtr host);
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_is_loading")]
         public static extern int cef_browser_host_is_loading(IntPtr host);
