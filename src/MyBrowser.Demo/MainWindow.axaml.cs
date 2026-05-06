@@ -54,13 +54,13 @@ namespace MyBrowser.Demo
                 _log.Information($"[MainWindow] 已创建控件: {control.GetType().Name}");
             }
 
-                // 订阅事件
+                // 订阅事件 - 所有回调通过 Dispatcher 切回 UI 线程
             if (_browser != null)
             {
-                _browser.TitleChanged += (s, e) => Title = e.Title ?? "MyBrowser";
-                _browser.AddressChanged += (s, e) => UrlTextBox.Text = e.Address;
-                _browser.LoadStart += (s, e) => _log.Information("[MainWindow] 开始加载");
-                _browser.LoadEnd += (s, e) => _log.Information($"[MainWindow] 加载结束: {e.HttpStatusCode}");
+                _browser.TitleChanged += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => Title = e.Title ?? "MyBrowser");
+                _browser.AddressChanged += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => UrlTextBox.Text = e.Address);
+                _browser.LoadStart += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => _log.Information("[MainWindow] 开始加载"));
+                _browser.LoadEnd += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => _log.Information($"[MainWindow] 加载结束: {e.HttpStatusCode}"));
 
                 // 加载初始URL
                 _browser.LoadUrl("https://www.baidu.com");
