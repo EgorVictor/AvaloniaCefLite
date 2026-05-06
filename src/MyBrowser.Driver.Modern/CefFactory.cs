@@ -164,6 +164,7 @@ namespace MyBrowser.Driver.Modern
             _browserFactory.Client.LoadingStateChanged += (s, isLoading) => OnCefLoadingStateChanged(isLoading);
             _browserFactory.Client.CanGoBackChanged += (s, canGoBack) => OnCefCanGoBackChanged(canGoBack);
             _browserFactory.Client.CanGoForwardChanged += (s, canGoForward) => OnCefCanGoForwardChanged(canGoForward);
+            _browserFactory.Client.PopupRequested += (s, url) => OnCefPopupRequested(url);
             _browserFactory.Client.BrowserCreated += (s, e) =>
             {
                 _browserHandle = e.BrowserHandle;
@@ -399,6 +400,12 @@ namespace MyBrowser.Driver.Modern
                 _canGoForward = canGoForward;
                 _log.Information("[ModernBrowserControl] CEF CanGoForward: {CanGoForward}", canGoForward);
             }
+        }
+
+        private void OnCefPopupRequested(string url)
+        {
+            _log.Information("[ModernBrowserControl] CEF Popup intercepted, navigating to: {Url}", url);
+            LoadUrl(url);
         }
 
         public void Dispose()

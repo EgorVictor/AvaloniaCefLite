@@ -64,6 +64,7 @@ namespace MyBrowser.Interop.cef
         public event EventHandler<bool>? LoadingStateChanged;
         public event EventHandler<bool>? CanGoBackChanged;
         public event EventHandler<bool>? CanGoForwardChanged;
+        public event EventHandler<string>? PopupRequested;
 
         public CefClient()
         {
@@ -214,6 +215,11 @@ namespace MyBrowser.Interop.cef
         public void OnLoadingStateChanged(bool isLoading) => LoadingStateChanged?.Invoke(this, isLoading);
         public void OnCanGoBackChanged(bool canGoBack) => CanGoBackChanged?.Invoke(this, canGoBack);
         public void OnCanGoForwardChanged(bool canGoForward) => CanGoForwardChanged?.Invoke(this, canGoForward);
+        public void OnPopupRequested(string url)
+        {
+            _log.Information("[CefClient] PopupRequested: {Url}", url);
+            PopupRequested?.Invoke(this, url);
+        }
 
         public void Dispose()
         {
@@ -332,9 +338,14 @@ namespace MyBrowser.Interop.cef
 
         private int OnBeforePopup(IntPtr self, IntPtr browser, IntPtr frame, IntPtr targetUrl, IntPtr targetFrameName, int targetDisposition, int userGesture, IntPtr popupFeatures, IntPtr windowInfo, IntPtr client, IntPtr settings, IntPtr extraInfo, int* noJavascriptAccess)
         {
-            _log.Information("[CefLifeSpanHandler] OnBeforePopup");
+            var url = CefDisplayHandler.GetCefString(targetUrl);
+            _log.Information("[CefLifeSpanHandler] OnBeforePopup: url={Url}, disposition={Disposition}", url, targetDisposition);
             *noJavascriptAccess = 0;
-            return 0;
+            if (!string.IsNullOrEmpty(url))
+            {
+                _parent.OnPopupRequested(url);
+            }
+            return 1;
         }
 
         private void OnAfterCreated(IntPtr self, IntPtr browser)
@@ -508,6 +519,18 @@ namespace MyBrowser.Interop.cef
         private void OnLoadStart(IntPtr self, IntPtr browser, IntPtr frame, int transitionType)
         {
             _log.Information("[CefLoadHandler] OnLoadStart: self={Self}, browser={Browser}, frame={Frame}", self, browser, frame);
+            if (frame != IntPtr.Zero)
+            {
+                var urlPtr = Marshal.ReadIntPtr(frame, 16);
+                if (urlPtr != IntPtr.Zero)
+                {
+                    var url = CefDisplayHandler.GetCefString(urlPtr);
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        _parent.OnAddressChanged(url);
+                    }
+                }
+            }
             _parent.OnLoadStart();
         }
 
@@ -618,12 +641,15 @@ namespace MyBrowser.Interop.cef
             _parent.OnAddressChanged(address);
         }
 
-        private static unsafe string GetCefString(IntPtr ptr)
+        public static string GetCefString(IntPtr ptr)
         {
             if (ptr == IntPtr.Zero) return string.Empty;
-            var cefStr = (cef_string_t*)ptr;
-            if (cefStr->str == null || cefStr->length == UIntPtr.Zero) return string.Empty;
-            return Marshal.PtrToStringUni((IntPtr)cefStr->str, (int)cefStr->length) ?? string.Empty;
+            var strPtr = Marshal.ReadIntPtr(ptr);
+            if (strPtr == IntPtr.Zero) return string.Empty;
+            var len = (int)Marshal.ReadInt64(ptr, 8);
+            if (len <= 0) return string.Empty;
+            if (len > 100000) return string.Empty;
+            return Marshal.PtrToStringUni(strPtr, len) ?? string.Empty;
         }
 
         public void Dispose()
