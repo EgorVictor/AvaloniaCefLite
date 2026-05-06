@@ -72,7 +72,6 @@ namespace MyBrowser.Interop
             // 使用 WS_CHILD 样式将浏览器嵌入父窗口
             var windowInfo = new cef_window_info_t
             {
-                size = (UIntPtr)sizeof(cef_window_info_t),
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
                 bounds = new cef_rect_t
                 {
@@ -89,8 +88,8 @@ namespace MyBrowser.Interop
                 hidden = 0,
                 parent_view = IntPtr.Zero,
                 view = IntPtr.Zero,
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000,
                 ex_style = 0,
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
                 menu = IntPtr.Zero
             };
 

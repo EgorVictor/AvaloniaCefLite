@@ -36,7 +36,7 @@ namespace MyBrowser.Interop
             return result;
         }
 
-        public static bool Initialize(IntPtr instanceHandle, bool multiThreadedMessageLoop = true)
+        public static bool Initialize(IntPtr instanceHandle, string driverDir, bool multiThreadedMessageLoop = true)
         {
             lock (_initLock)
             {
@@ -47,7 +47,7 @@ namespace MyBrowser.Interop
                 }
 
                 _log.Information("[CefRuntime] Initializing CEF...");
-                _log.Information("[CefRuntime] sizeof(cef_settings_t) = {0}", sizeof(cef_settings_t));
+                _log.Information("[CefRuntime] DriverDir: {DriverDir}", driverDir);
 
                 var settings = new cef_settings_t
                 {
@@ -66,6 +66,34 @@ namespace MyBrowser.Interop
                     cookieable_schemes_exclude_defaults = 0
                 };
 
+                var resourcesDir = Path.Combine(driverDir, "resources");
+                var localesDir = Path.Combine(driverDir, "locales");
+
+                if (File.Exists(Path.Combine(driverDir, "resources.pak")))
+                {
+                    SetCefString(ref settings.resources_dir_path, driverDir);
+                    _log.Information("[CefRuntime] Resources dir: {DriverDir} (contains resources.pak)", driverDir);
+                }
+                else if (Directory.Exists(resourcesDir))
+                {
+                    SetCefString(ref settings.resources_dir_path, resourcesDir);
+                    _log.Information("[CefRuntime] Resources dir: {ResourcesDir}", resourcesDir);
+                }
+                else
+                {
+                    _log.Information("[CefRuntime] WARNING: No resources directory found");
+                }
+
+                if (Directory.Exists(localesDir))
+                {
+                    SetCefString(ref settings.locales_dir_path, localesDir);
+                    _log.Information("[CefRuntime] Locales dir: {LocalesDir}", localesDir);
+                }
+                else
+                {
+                    _log.Information("[CefRuntime] WARNING: No locales directory found");
+                }
+
                 var app = new cef_app_t
                 {
                     base_ = new cef_base_t
@@ -79,6 +107,8 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] Calling cef_initialize...");
                 _log.Information("[CefRuntime] settings.size = {0}", settings.size);
                 _log.Information("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
+                _log.Information("[CefRuntime] settings.resources_dir = {ResourcesDir}", GetString(settings.resources_dir_path));
+                _log.Information("[CefRuntime] settings.locales_dir = {LocalesDir}", GetString(settings.locales_dir_path));
 
                 int result = NativeMethods.cef_initialize(&args, &settings, null, IntPtr.Zero);
                 _log.Information("[CefRuntime] cef_initialize returned: {0}", result);
@@ -93,6 +123,29 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] CEF initialization FAILED!");
                 return false;
             }
+        }
+
+        private static unsafe void SetCefString(ref cef_string_t cefStr, string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                cefStr.str = null;
+                cefStr.length = UIntPtr.Zero;
+                cefStr.dtor = IntPtr.Zero;
+                return;
+            }
+
+            var ptr = Marshal.StringToHGlobalUni(value);
+            cefStr.str = (char*)ptr;
+            cefStr.length = (UIntPtr)value.Length;
+            cefStr.dtor = IntPtr.Zero;
+        }
+
+        private static unsafe string GetString(cef_string_t cefStr)
+        {
+            if (cefStr.str == null || cefStr.length == UIntPtr.Zero)
+                return "(null)";
+            return Marshal.PtrToStringUni((IntPtr)cefStr.str, (int)cefStr.length) ?? "(empty)";
         }
 
         /// <summary>

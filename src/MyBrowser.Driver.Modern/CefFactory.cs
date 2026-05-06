@@ -55,8 +55,7 @@ namespace MyBrowser.Driver.Modern
 
             SetDllDirectory(DriverDirectory);
 
-            // 使用多线程消息循环，避免时序问题导致浏览器创建失败
-            CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: true);
+            CefRuntime.Initialize(GetModuleHandle(null), DriverDirectory, multiThreadedMessageLoop: true);
 
             _browserFactory = new CefBrowserFactory();
             _initialized = true;
