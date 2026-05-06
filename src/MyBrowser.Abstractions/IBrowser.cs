@@ -1,6 +1,18 @@
 namespace MyBrowser
 {
     using System;
+    using System.IO;
+
+    /// <summary>
+    /// 日志路径辅助类
+    /// </summary>
+    public static class LogHelper
+    {
+        public static string GetLogPath(string fileName = "mybrowser.log")
+        {
+            return Path.Combine(AppContext.BaseDirectory, fileName);
+        }
+    }
 
     /// <summary>
     /// 浏览器初始化配置
