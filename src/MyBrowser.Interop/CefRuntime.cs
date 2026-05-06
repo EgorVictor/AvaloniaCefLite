@@ -23,18 +23,6 @@ namespace MyBrowser.Interop
             .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
-        static CefRuntime()
-        {
-            try
-            {
-                if (File.Exists(_logFile))
-                {
-                    File.Delete(_logFile);
-                }
-            }
-            catch { }
-        }
-
         public static CefRuntime Instance => _instance ??= new CefRuntime();
         public static bool IsInitialized => _initialized;
         public static bool IsShutdown => _shutdown;
@@ -42,7 +30,10 @@ namespace MyBrowser.Interop
         public static int ExecuteMainProcess(IntPtr instanceHandle)
         {
             var args = new cef_main_args_t { instance = instanceHandle };
-            return -1;
+            _log.Information("[CefRuntime] Calling cef_execute_process...");
+            var result = NativeMethods.cef_execute_process(&args, null, IntPtr.Zero);
+            _log.Information("[CefRuntime] cef_execute_process returned: {0}", result);
+            return result;
         }
 
         public static bool Initialize(IntPtr instanceHandle, bool multiThreadedMessageLoop = true)

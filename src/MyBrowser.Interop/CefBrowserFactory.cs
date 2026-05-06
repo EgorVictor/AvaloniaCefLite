@@ -27,10 +27,28 @@ namespace MyBrowser.Interop
         public IntPtr BrowserHandle { get; private set; }
         public IntPtr BrowserHostHandle => _browserHostHandle;
         public bool IsInitialized => _initialized;
+        
+        /// <summary>
+        /// 获取CEF客户端以订阅事件
+        /// </summary>
+        public CefClient Client => _client;
 
         public CefBrowserFactory()
         {
             _client = new CefClient();
+            _client.BrowserCreated += (_, e) =>
+            {
+                BrowserHandle = e.BrowserHandle;
+                _browserHostHandle = e.BrowserHostHandle;
+                _initialized = e.BrowserHandle != IntPtr.Zero;
+                _log.Information("[CefBrowserFactory] Browser handle updated, Browser: {Browser}, Host: {Host}", BrowserHandle, _browserHostHandle);
+            };
+            _client.BrowserClosing += (_, _) =>
+            {
+                BrowserHandle = IntPtr.Zero;
+                _browserHostHandle = IntPtr.Zero;
+                _initialized = false;
+            };
             _settings = CreateDefaultSettings();
             _initialized = false;
             _browserHostHandle = IntPtr.Zero;
@@ -56,10 +74,13 @@ namespace MyBrowser.Interop
             {
                 size = (UIntPtr)sizeof(cef_window_info_t),
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
-                x = 0,
-                y = 0,
-                width = 1024,
-                height = 768,
+                bounds = new cef_rect_t
+                {
+                    x = 0,
+                    y = 0,
+                    width = 1024,
+                    height = 768
+                },
                 parent_window = parentHwnd,
                 windowless_rendering_enabled = 0,
                 shared_texture_enabled = 0,
@@ -68,11 +89,9 @@ namespace MyBrowser.Interop
                 hidden = 0,
                 parent_view = IntPtr.Zero,
                 view = IntPtr.Zero,
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00090000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
                 ex_style = 0,
-                menu = IntPtr.Zero,
-                transparency = 0,
-                rects_provided = 0
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
+                menu = IntPtr.Zero
             };
 
             var url = new cef_string_t();
@@ -147,10 +166,13 @@ namespace MyBrowser.Interop
             {
                 size = (UIntPtr)sizeof(cef_window_info_t),
                 window_name = new cef_string_t { str = null, length = UIntPtr.Zero, dtor = IntPtr.Zero },
-                x = 0,
-                y = 0,
-                width = 1024,
-                height = 768,
+                bounds = new cef_rect_t
+                {
+                    x = 0,
+                    y = 0,
+                    width = 1024,
+                    height = 768
+                },
                 parent_window = parentHwnd,
                 windowless_rendering_enabled = 0,
                 shared_texture_enabled = 0,
@@ -159,11 +181,9 @@ namespace MyBrowser.Interop
                 hidden = 0,
                 parent_view = IntPtr.Zero,
                 view = IntPtr.Zero,
-                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00090000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
                 ex_style = 0,
-                menu = IntPtr.Zero,
-                transparency = 0,
-                rects_provided = 0
+                style = 0x40000000 | 0x04000000 | 0x02000000 | 0x00010000 | 0x10000000, // WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
+                menu = IntPtr.Zero
             };
 
             var url = new cef_string_t();

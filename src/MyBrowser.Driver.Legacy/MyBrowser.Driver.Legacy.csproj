@@ -4,7 +4,7 @@
         <RootNamespace>MyBrowser.Driver.Legacy</RootNamespace>
         <AssemblyName>MyBrowser.Driver.Legacy</AssemblyName>
         <!-- 输出到 Demo 的 bin/Runtimes/Legacy 目录 -->
-        <OutputPath>$(SolutionDir)src\MyBrowser.Demo\bin\$(Configuration)\net8.0\Runtimes\Legacy\</OutputPath>
+        <OutputPath>$(MSBuildThisFileDirectory)..\MyBrowser.Demo\bin\$(Configuration)\net8.0\Runtimes\Legacy\</OutputPath>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
 

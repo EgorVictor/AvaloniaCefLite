@@ -232,14 +232,20 @@ namespace MyBrowser.Interop.cef.capi
     #region Window Info
 
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct cef_window_info_t
+    public struct cef_rect_t
     {
-        public UIntPtr size;
-        public cef_string_t window_name;
         public int x;
         public int y;
         public int width;
         public int height;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct cef_window_info_t
+    {
+        public UIntPtr size;
+        public cef_string_t window_name;
+        public cef_rect_t bounds;
         public IntPtr parent_window;
         public int windowless_rendering_enabled;
         public int shared_texture_enabled;
@@ -248,11 +254,9 @@ namespace MyBrowser.Interop.cef.capi
         public int hidden;
         public IntPtr parent_view;
         public IntPtr view;
-        public uint style;
         public uint ex_style;
+        public uint style;
         public IntPtr menu;
-        public int transparency;
-        public int rects_provided;
     }
 
     #endregion
@@ -326,6 +330,9 @@ namespace MyBrowser.Interop.cef.capi
 
     public static unsafe class NativeMethods
     {
+        [DllImport(cef_capi.DllName, EntryPoint = "cef_execute_process")]
+        public static extern int cef_execute_process(cef_main_args_t* args, cef_app_t* app, IntPtr windows_sandbox_info);
+
         [DllImport(cef_capi.DllName, EntryPoint = "cef_initialize")]
         public static extern int cef_initialize(cef_main_args_t* args, cef_settings_t* settings, cef_app_t* app, IntPtr windows_sandbox_info);
 

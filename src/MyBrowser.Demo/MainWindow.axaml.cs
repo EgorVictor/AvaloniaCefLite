@@ -5,7 +5,8 @@ namespace MyBrowser.Demo
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
-    using Avalonia.Platform;
+    using Avalonia.VisualTree;
+    using System.Runtime.InteropServices;
     using MyBrowser;
     using MyBrowser.Interop;
     using Serilog;
@@ -105,7 +106,7 @@ namespace MyBrowser.Demo
             browser.LoadUrl("about:blank");
         }
 
-        private BrowserView ActiveBrowser => (Tabs.SelectedContent as TabItem)?.Content as BrowserView;
+        private BrowserView ActiveBrowser => Tabs.SelectedContent as BrowserView;
 
         private void OnNewTab(object sender, RoutedEventArgs e) => CreateNewTab();
 
@@ -138,69 +139,132 @@ namespace MyBrowser.Demo
             .CreateLogger();
 
         private readonly IBrowserControl _browser;
+        private readonly Window _parentWindow;
         private IntPtr _containerHwnd;
         private bool _browserCreated;
 
         public BrowserView(IBrowserControl browser, Window parentWindow)
         {
             _browser = browser;
+            _parentWindow = parentWindow;
             
             if (_browser == null)
             {
                 return;
             }
 
-            // 获取浏览器控件的HWND并创建浏览器
             Loaded += OnLoaded;
+            DetachedFromVisualTree += OnDetachedFromVisualTree;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (_browserCreated) return;
+            EnsureContainerWindow();
+            TryCreateBrowser();
+            UpdateNativeBounds();
+        }
 
-            var hwnd = GetNativeWindowHandle(this);
-            if (hwnd != IntPtr.Zero)
+        private void OnDetachedFromVisualTree(object sender, VisualTreeAttachmentEventArgs e)
+        {
+            if (_browser != null)
             {
-                _containerHwnd = hwnd;
-                _log.Information($"[BrowserView] 获取到容器HWND: {hwnd}");
-
-                // 设置窗口句柄并创建浏览器
-                _browser.SetWindowHandle(hwnd);
-                _browserCreated = true;
+                _browser.Dispose();
             }
+
+            if (_containerHwnd != IntPtr.Zero)
+            {
+                DestroyWindow(_containerHwnd);
+                _containerHwnd = IntPtr.Zero;
+            }
+
+            _browserCreated = false;
+        }
+
+        private void EnsureContainerWindow()
+        {
+            if (_containerHwnd != IntPtr.Zero)
+            {
+                return;
+            }
+
+            var platformHandle = _parentWindow.TryGetPlatformHandle();
+            var parentHwnd = platformHandle?.Handle ?? IntPtr.Zero;
+            if (parentHwnd == IntPtr.Zero)
+            {
+                _log.Information("[BrowserView] 顶层窗口 HWND 还不可用");
+                return;
+            }
+
+            _containerHwnd = CreateWindowEx(
+                0,
+                "STATIC",
+                string.Empty,
+                WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+                0,
+                0,
+                Math.Max(1, (int)Bounds.Width),
+                Math.Max(1, (int)Bounds.Height),
+                parentHwnd,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                IntPtr.Zero);
+
+            _log.Information("[BrowserView] 创建原生容器 HWND: {ContainerHwnd}, Parent: {ParentHwnd}", _containerHwnd, parentHwnd);
         }
 
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
             base.OnSizeChanged(e);
-            
-            // 浏览器窗口大小调整由CEF自动处理
-            // 如果需要手动调整，可以在这里实现
+            UpdateNativeBounds();
         }
 
-        /// <summary>
-        /// 获取Avalonia控件的原生HWND
-        /// </summary>
-        private IntPtr GetNativeWindowHandle(Control control)
+        protected override Size ArrangeOverride(Size finalSize)
         {
-            try
+            var size = base.ArrangeOverride(finalSize);
+            UpdateNativeBounds();
+            return size;
+        }
+
+        private void UpdateNativeBounds()
+        {
+            if (_containerHwnd == IntPtr.Zero)
             {
-                var topLevel = TopLevel.GetTopLevel(control);
-                if (topLevel != null)
-                {
-                    var platformHandle = topLevel.TryGetPlatformHandle();
-                    if (platformHandle != null)
-                    {
-                        _log.Information($"[BrowserView] PlatformHandle kind: {platformHandle.HandleDescriptor}");
-                        return platformHandle.Handle;
-                    }
-                }
+                return;
             }
-            catch (Exception ex)
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            var origin = topLevel == null ? null : this.TranslatePoint(new Point(0, 0), topLevel);
+            if (topLevel == null || origin == null)
             {
-                _log.Information($"[BrowserView] 获取HWND失败: {ex.Message}");
+                return;
             }
-            return IntPtr.Zero;
+
+            var scale = topLevel.RenderScaling;
+            var x = (int)Math.Round(origin.Value.X * scale);
+            var y = (int)Math.Round(origin.Value.Y * scale);
+            var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
+            var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
+
+            SetWindowPos(
+                _containerHwnd,
+                IntPtr.Zero,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+
+        private void TryCreateBrowser()
+        {
+            if (_browserCreated || _browser == null || _containerHwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            _log.Information("[BrowserView] 设置浏览器父 HWND: {ContainerHwnd}", _containerHwnd);
+            _browser.SetWindowHandle(_containerHwnd);
+            _browserCreated = true;
         }
 
         public void LoadUrl(string url) => _browser?.LoadUrl(url);
@@ -208,5 +272,40 @@ namespace MyBrowser.Demo
         public void GoForward() => _browser?.GoForward();
         public void Reload() => _browser?.Reload();
         public void Stop() => _browser?.Stop();
+
+        private const int WS_CHILD = 0x40000000;
+        private const int WS_VISIBLE = 0x10000000;
+        private const int WS_CLIPCHILDREN = 0x02000000;
+        private const int WS_CLIPSIBLINGS = 0x04000000;
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_NOACTIVATE = 0x0010;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateWindowEx(
+            int dwExStyle,
+            string lpClassName,
+            string lpWindowName,
+            int dwStyle,
+            int x,
+            int y,
+            int nWidth,
+            int nHeight,
+            IntPtr hWndParent,
+            IntPtr hMenu,
+            IntPtr hInstance,
+            IntPtr lpParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(
+            IntPtr hWnd,
+            IntPtr hWndInsertAfter,
+            int x,
+            int y,
+            int cx,
+            int cy,
+            uint uFlags);
     }
 }

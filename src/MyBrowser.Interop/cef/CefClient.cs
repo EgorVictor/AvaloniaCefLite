@@ -29,6 +29,8 @@ namespace MyBrowser.Interop.cef
         public event EventHandler? LoadStart;
         public event EventHandler<int>? LoadEnd;
         public event EventHandler<string>? LoadError;
+        public event EventHandler<BrowserCreatedEventArgs>? BrowserCreated;
+        public event EventHandler? BrowserClosing;
 
         public CefClient()
         {
@@ -86,6 +88,19 @@ namespace MyBrowser.Interop.cef
         public void OnLoadStart() => LoadStart?.Invoke(this, EventArgs.Empty);
         public void OnLoadEnd(int httpStatusCode) => LoadEnd?.Invoke(this, httpStatusCode);
         public void OnLoadError(string error) => LoadError?.Invoke(this, error);
+        public void OnBrowserCreated(IntPtr browser, IntPtr host)
+        {
+            BrowserHandle = browser;
+            BrowserHostHandle = host;
+            BrowserCreated?.Invoke(this, new BrowserCreatedEventArgs(browser, host));
+        }
+
+        public void OnBrowserClosing()
+        {
+            BrowserHandle = IntPtr.Zero;
+            BrowserHostHandle = IntPtr.Zero;
+            BrowserClosing?.Invoke(this, EventArgs.Empty);
+        }
 
         public void Dispose()
         {
@@ -108,6 +123,18 @@ namespace MyBrowser.Interop.cef
 
             _log.Information("[CefClient] Disposed");
         }
+    }
+
+    public sealed class BrowserCreatedEventArgs : EventArgs
+    {
+        public BrowserCreatedEventArgs(IntPtr browserHandle, IntPtr browserHostHandle)
+        {
+            BrowserHandle = browserHandle;
+            BrowserHostHandle = browserHostHandle;
+        }
+
+        public IntPtr BrowserHandle { get; }
+        public IntPtr BrowserHostHandle { get; }
     }
 
     #region LifeSpanHandler
@@ -168,12 +195,15 @@ namespace MyBrowser.Interop.cef
 
         private void OnAfterCreated(IntPtr self, IntPtr browser, IntPtr popupBrowser)
         {
-            _log.Information("[CefLifeSpanHandler] OnAfterCreated");
+            var host = browser != IntPtr.Zero ? NativeMethods.cef_browser_get_host(browser) : IntPtr.Zero;
+            _log.Information("[CefLifeSpanHandler] OnAfterCreated, Browser: {Browser}, Host: {Host}", browser, host);
+            _parent.OnBrowserCreated(browser, host);
         }
 
         private void OnBeforeClose(IntPtr self, IntPtr browser)
         {
             _log.Information("[CefLifeSpanHandler] OnBeforeClose");
+            _parent.OnBrowserClosing();
         }
 
         private void OnRenderViewReady(IntPtr self, IntPtr browser)

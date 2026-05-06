@@ -8,6 +8,10 @@ obj/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+.dotnet-home/
+.verify_bin/
+.verify_obj/
+msbuild.log
 
 # Rider
 .idea/

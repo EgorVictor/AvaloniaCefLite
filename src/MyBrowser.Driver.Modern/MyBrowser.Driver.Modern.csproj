@@ -4,7 +4,7 @@
         <RootNamespace>MyBrowser.Driver.Modern</RootNamespace>
         <AssemblyName>MyBrowser.Driver.Modern</AssemblyName>
         <!-- 输出到 Demo 的 bin/Runtimes/Modern 目录 -->
-        <OutputPath>$(SolutionDir)src\MyBrowser.Demo\bin\$(Configuration)\net8.0\Runtimes\Modern\</OutputPath>
+        <OutputPath>$(MSBuildThisFileDirectory)..\MyBrowser.Demo\bin\$(Configuration)\net8.0\Runtimes\Modern\</OutputPath>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
 

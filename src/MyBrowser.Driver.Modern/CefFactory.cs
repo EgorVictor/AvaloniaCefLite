@@ -21,7 +21,7 @@ namespace MyBrowser.Driver.Modern
 
         private BrowserConfig _config;
         private bool _initialized;
-        private CefBrowserFactory? _browserFactory;
+        private CefBrowserFactory _browserFactory;
         private IntPtr _browserHandle;
         
         /// <summary>
@@ -55,7 +55,8 @@ namespace MyBrowser.Driver.Modern
 
             SetDllDirectory(DriverDirectory);
 
-            CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: false);
+            // 使用多线程消息循环，避免时序问题导致浏览器创建失败
+            CefRuntime.Initialize(GetModuleHandle(null), multiThreadedMessageLoop: true);
 
             _browserFactory = new CefBrowserFactory();
             _initialized = true;
@@ -124,7 +125,7 @@ namespace MyBrowser.Driver.Modern
         /// 获取模块句柄
         /// </summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetModuleHandle(string? lpModuleName);
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
     }
 
     /// <summary>
@@ -155,6 +156,20 @@ namespace MyBrowser.Driver.Modern
             _browserFactory = browserFactory;
             _url = config.InitialUrl;
 
+            // 订阅CEF客户端事件
+            _browserFactory.Client.LoadStart += (s, e) => OnCefLoadStart();
+            _browserFactory.Client.LoadEnd += (s, code) => OnCefLoadEnd(code);
+            _browserFactory.Client.LoadError += (s, error) => OnCefLoadError(error);
+            _browserFactory.Client.TitleChanged += (s, title) => OnCefTitleChanged(title);
+            _browserFactory.Client.AddressChanged += (s, url) => OnCefAddressChanged(url);
+            _browserFactory.Client.BrowserCreated += (s, e) =>
+            {
+                _browserHandle = e.BrowserHandle;
+                _canGoBack = false;
+                _canGoForward = false;
+                BrowserInitialized?.Invoke(this, EventArgs.Empty);
+            };
+
             _log.Information("[ModernBrowserControl] 已创建, 驱动目录: {DriverDir}", _driverDir);
         }
 
@@ -164,12 +179,12 @@ namespace MyBrowser.Driver.Modern
         public bool CanGoBack => _canGoBack;
         public bool CanGoForward => _canGoForward;
 
-        public event EventHandler? BrowserInitialized;
-        public event EventHandler<LoadStartEventArgs>? LoadStart;
-        public event EventHandler<LoadEndEventArgs>? LoadEnd;
-        public event EventHandler<ConsoleMessageEventArgs>? ConsoleMessage;
-        public event EventHandler<TitleChangedEventArgs>? TitleChanged;
-        public event EventHandler<AddressChangedEventArgs>? AddressChanged;
+        public event EventHandler BrowserInitialized;
+        public event EventHandler<LoadStartEventArgs> LoadStart;
+        public event EventHandler<LoadEndEventArgs> LoadEnd;
+        public event EventHandler<ConsoleMessageEventArgs> ConsoleMessage;
+        public event EventHandler<TitleChangedEventArgs> TitleChanged;
+        public event EventHandler<AddressChangedEventArgs> AddressChanged;
 
         /// <summary>
         /// 设置父窗口句柄并创建浏览器
@@ -204,10 +219,9 @@ namespace MyBrowser.Driver.Modern
 
             if (success)
             {
-                _log.Information("[ModernBrowserControl] 浏览器创建成功, Handle: {BrowserHandle}", _browserHandle);
+                _log.Information("[ModernBrowserControl] 浏览器创建请求已提交");
                 _canGoBack = false;
                 _canGoForward = false;
-                BrowserInitialized?.Invoke(this, EventArgs.Empty);
             }
             else
             {
@@ -238,7 +252,7 @@ namespace MyBrowser.Driver.Modern
 
         public void GoBack()
         {
-            if (_browserHandle != IntPtr.Zero)
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _log.Information("[ModernBrowserControl] 后退");
                 _browserFactory.GoBack();
@@ -247,7 +261,7 @@ namespace MyBrowser.Driver.Modern
 
         public void GoForward()
         {
-            if (_browserHandle != IntPtr.Zero)
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _log.Information("[ModernBrowserControl] 前进");
                 _browserFactory.GoForward();
@@ -257,7 +271,7 @@ namespace MyBrowser.Driver.Modern
         public void Reload()
         {
             _log.Information("[ModernBrowserControl] 重新加载");
-            if (_browserHandle != IntPtr.Zero)
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _browserFactory.Reload();
             }
@@ -266,7 +280,7 @@ namespace MyBrowser.Driver.Modern
         public void Stop()
         {
             _log.Information("[ModernBrowserControl] 停止");
-            if (_browserHandle != IntPtr.Zero)
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _browserFactory.StopLoad();
             }
@@ -276,10 +290,48 @@ namespace MyBrowser.Driver.Modern
         public void ExecuteJavaScript(string script)
         {
             _log.Information("[ModernBrowserControl] 执行脚本: {Script}", script);
-            if (_browserHandle != IntPtr.Zero)
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
             {
                 _browserFactory.ExecuteJavaScript(script, _url, 0);
             }
+        }
+
+        /// <summary>
+        /// CEF 事件处理程序
+        /// </summary>
+        private void OnCefLoadStart()
+        {
+            _isLoading = true;
+            _log.Information("[ModernBrowserControl] CEF OnLoadStart");
+            LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
+        }
+
+        private void OnCefLoadEnd(int httpStatusCode)
+        {
+            _isLoading = false;
+            _log.Information("[ModernBrowserControl] CEF OnLoadEnd, StatusCode: {Code}", httpStatusCode);
+            LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = httpStatusCode });
+        }
+
+        private void OnCefLoadError(string error)
+        {
+            _isLoading = false;
+            _log.Information("[ModernBrowserControl] CEF OnLoadError: {Error}", error);
+            // 可在此处转发到自定义错误事件
+        }
+
+        private void OnCefTitleChanged(string title)
+        {
+            _title = title;
+            _log.Information("[ModernBrowserControl] CEF OnTitleChange: {Title}", title);
+            TitleChanged?.Invoke(this, new TitleChangedEventArgs { Title = title });
+        }
+
+        private void OnCefAddressChanged(string url)
+        {
+            _url = url;
+            _log.Information("[ModernBrowserControl] CEF OnAddressChange: {Url}", url);
+            AddressChanged?.Invoke(this, new AddressChangedEventArgs { Address = url, IsMainFrame = true });
         }
 
         public void Dispose()

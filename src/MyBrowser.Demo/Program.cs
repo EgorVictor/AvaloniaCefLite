@@ -2,24 +2,26 @@ namespace MyBrowser.Demo
 {
     using System;
     using System.IO;
+    using System.Runtime.InteropServices;
     using Avalonia;
     using Avalonia.Controls.ApplicationLifetimes;
+    using MyBrowser.Interop;
 
     class Program
     {
         [STAThread]
         static void Main(string[] args)
         {
-            // 删除旧日志文件
-            var logFile = @"F:\mybrowser.log";
-            try
+            ConfigureCefNativeSearchPath();
+
+            var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
+            if (cefExitCode >= 0)
             {
-                if (File.Exists(logFile))
-                {
-                    File.Delete(logFile);
-                }
+                Environment.Exit(cefExitCode);
+                return;
             }
-            catch { }
+
+            ResetLogFile();
 
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
@@ -28,5 +30,37 @@ namespace MyBrowser.Demo
             => AppBuilder.Configure<App>()
                 .UsePlatformDetect()
                 .LogToTrace();
+
+        private static void ConfigureCefNativeSearchPath()
+        {
+            var driverName = Environment.OSVersion.Version.Major < 10 ? "Legacy" : "Modern";
+            var runtimePath = Path.Combine(AppContext.BaseDirectory, "Runtimes", driverName);
+
+            if (Directory.Exists(runtimePath))
+            {
+                SetDllDirectory(runtimePath);
+            }
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool SetDllDirectory(string lpPathName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        private static void ResetLogFile()
+        {
+            var logFile = @"F:\mybrowser.log";
+            try
+            {
+                if (File.Exists(logFile))
+                {
+                    File.Delete(logFile);
+                }
+            }
+            catch
+            {
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <AvaloniaVersion>11.3.7</AvaloniaVersion>
         <RootNamespace>MyBrowser.Demo</RootNamespace>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
     </PropertyGroup>
 
     <ItemGroup>
