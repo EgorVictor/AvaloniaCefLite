@@ -34,8 +34,17 @@ namespace MyBrowser.Interop
         /// </summary>
         public static event EventHandler? ContextInitialized;
 
+        private static bool _executeMainProcessCalled;
+
         public static int ExecuteMainProcess(IntPtr instanceHandle)
         {
+            if (_executeMainProcessCalled)
+            {
+                _log.Warning("[CefRuntime] ExecuteMainProcess called twice! Stack: {0}", Environment.StackTrace);
+                return -1;
+            }
+            _executeMainProcessCalled = true;
+
             var args = new cef_main_args_t { instance = instanceHandle };
             _log.Information("[CefRuntime] Calling cef_execute_process...");
             var result = NativeMethods.cef_execute_process(&args, null, IntPtr.Zero);
@@ -171,9 +180,14 @@ namespace MyBrowser.Interop
             if (!_initialized || _shutdown) return;
 
             _log.Information("[CefRuntime] Shutting down CEF...");
+
+            // 1. First call cef_shutdown() while native callbacks are still valid
+            NativeMethods.cef_shutdown();
+
+            // 2. Then dispose the callback objects
             _app?.Dispose();
             _app = null;
-            NativeMethods.cef_shutdown();
+
             _shutdown = true;
             _initialized = false;
             _log.Information("[CefRuntime] CEF shut down");
