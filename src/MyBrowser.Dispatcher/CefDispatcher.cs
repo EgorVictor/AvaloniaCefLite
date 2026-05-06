@@ -80,8 +80,9 @@ namespace MyBrowser
         /// </summary>
         internal static IBrowserFactory BootInternal(Version osVersion)
         {
-            // 1. 检测操作系统版本（Win7/8=Legacy，Win10+=Modern）
-            bool isLegacy = osVersion.Major < 10;
+            // 1. 检测操作系统版本（Win7/8/10 都用 Modern + GPU 禁用，Legacy 仅用于测试）
+            // Win7 上 CEF 109 需要禁用 GPU 硬件加速（已在 CefApp.OnBeforeCommandLineProcessing 中处理）
+            bool isLegacy = false; // 保留变量但始终为 false，Legacy 仅作测试用
             
             DriverName = isLegacy ? "Legacy" : "Modern";
             DriverPath = Path.Combine(AppContext.BaseDirectory, "Runtimes", DriverName);

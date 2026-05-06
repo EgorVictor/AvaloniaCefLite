@@ -119,17 +119,11 @@ namespace MyBrowser.Interop
         }
 
         // ===== cef_app_t ref-count (separate from BPH) =====
-        private void AppAddRef(IntPtr self)
-        {
-            var newCount = Interlocked.Increment(ref _appRefCount);
-            _log.Information("[CefApp] AddRef -> {RefCount}", newCount);
-        }
+        private void AppAddRef(IntPtr self) => Interlocked.Increment(ref _appRefCount);
 
         private int AppRelease(IntPtr self)
         {
             var newCount = Interlocked.Decrement(ref _appRefCount);
-            _log.Information("[CefApp] Release -> {RefCount}", newCount);
-            // NEVER call Dispose() here - native memory is kept alive until Shutdown
             return (newCount == 0) ? 1 : 0;
         }
 
@@ -137,17 +131,12 @@ namespace MyBrowser.Interop
         private int AppHasAtLeastOneRef(IntPtr self) => _appRefCount >= 1 ? 1 : 0;
 
         // ===== cef_browser_process_handler_t ref-count (separate from App) =====
-        private void BphAddRef(IntPtr self)
-        {
-            var newCount = Interlocked.Increment(ref _bphRefCount);
-            _log.Information("[CefApp.BPH] AddRef -> {RefCount}", newCount);
-        }
+        private void BphAddRef(IntPtr self) => Interlocked.Increment(ref _bphRefCount);
 
         private int BphRelease(IntPtr self)
         {
-            var newCount = Interlocked.Decrement(ref _bphRefCount);
-            _log.Information("[CefApp.BPH] Release -> {RefCount}", newCount);
-            // NEVER call Dispose() here - native memory is kept alive until Shutdown
+            var newCount = Math.Max(0, Interlocked.Decrement(ref _bphRefCount));
+            _bphRefCount = newCount;
             return (newCount == 0) ? 1 : 0;
         }
 
@@ -155,11 +144,7 @@ namespace MyBrowser.Interop
         private int BphHasAtLeastOneRef(IntPtr self) => _bphRefCount >= 1 ? 1 : 0;
 
         // ===== cef_app_t callbacks =====
-        private IntPtr GetBrowserProcessHandler(IntPtr self)
-        {
-            _log.Information("[CefApp] GetBrowserProcessHandler called, returning: {Ptr}", _browserProcessHandlerPtr);
-            return _browserProcessHandlerPtr;
-        }
+        private IntPtr GetBrowserProcessHandler(IntPtr self) => _browserProcessHandlerPtr;
 
         private void OnContextInitialized(IntPtr self)
         {
@@ -171,19 +156,17 @@ namespace MyBrowser.Interop
         {
             _log.Information("[CefApp] OnBeforeCommandLineProcessing - Disabling GPU for Win7 compatibility");
             
-            // 禁用 GPU 硬件加速，防止 Win7 上出现渲染崩溃
             CommandLineAppendSwitch(commandLine, "disable-gpu");
             CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
-            CommandLineAppendSwitch(commandLine, "disable-software-rasterizer");
+            CommandLineAppendSwitch(commandLine, "disable-gpu-process");
+            CommandLineAppendSwitch(commandLine, "single-process");
         }
 
         private static unsafe void CommandLineAppendSwitch(cef_command_line_t* commandLine, string switchName)
         {
             if (commandLine == null) return;
             
-            // append_switch is at vtable offset 112
-            var ptr = new IntPtr((byte*)commandLine + 112);
-            var funcPtr = Marshal.ReadIntPtr((IntPtr)commandLine, 112);
+            var funcPtr = commandLine->append_switch;
             if (funcPtr == IntPtr.Zero) return;
 
             var appendSwitch = Marshal.GetDelegateForFunctionPointer<cef_command_line_append_switch>(funcPtr);

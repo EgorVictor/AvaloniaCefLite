@@ -425,21 +425,25 @@ namespace MyBrowser.Interop.cef.capi
     #region App
 
     // CEF 109 cef_command_line_t
+    [StructLayout(LayoutKind.Sequential)]
     public unsafe struct cef_command_line_t
     {
         public cef_base_ref_counted_t base_;
-        // vtable offsets (64-bit):
-        // 40: is_valid
-        // 48: is_read_only
-        // 56: get_object
-        // 64: get_command_line_string
-        // 72: get_program
-        // 80: get_arguments
-        // 88: has_switch
-        // 96: get_switch_value
-        // 104: get_flags
-        // 112: append_switch
-        // 120: append_switch_with_value
+        public IntPtr is_valid;
+        public IntPtr is_read_only;
+        public IntPtr get_object;
+        public IntPtr get_command_line_string;
+        public IntPtr get_program;
+        public IntPtr get_arguments;
+        public IntPtr has_switches;
+        public IntPtr get_switches;
+        public IntPtr get_flags;
+        public IntPtr append_switch;
+        public IntPtr append_switch_with_value;
+        public IntPtr has_arguments;
+        public IntPtr get_arguments_list;
+        public IntPtr get_switch_value;
+        public IntPtr has_switch_with_value;
     }
 
     public unsafe delegate void cef_command_line_append_switch(IntPtr self, cef_string_t* name);
