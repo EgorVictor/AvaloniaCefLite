@@ -23,6 +23,7 @@ namespace MyBrowser
             .CreateLogger();
 
         private static IBrowserFactory _factory;
+        private static bool _assemblyResolveRegistered;
         
         /// <summary>
         /// 设置原生DLL搜索路径的Win32 API
@@ -114,9 +115,17 @@ namespace MyBrowser
 
             // 3. 挂载AssemblyResolve - 托管DLL搜索路径劫持
             // 这对CefGlue.dll的加载至关重要
-            _log.Information("[CefDispatcher] 步骤2: 挂载AssemblyResolve");
-            AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
-            _log.Information("[CefDispatcher]   AssemblyResolve处理器已注册");
+            if (!_assemblyResolveRegistered)
+            {
+                _log.Information("[CefDispatcher] 步骤2: 挂载AssemblyResolve");
+                AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
+                _assemblyResolveRegistered = true;
+                _log.Information("[CefDispatcher]   AssemblyResolve处理器已注册");
+            }
+            else
+            {
+                _log.Information("[CefDispatcher] 步骤2: AssemblyResolve已注册，跳过");
+            }
 
             // 4. 查找驱动DLL路径
             _log.Information("[CefDispatcher] 步骤3: 定位驱动DLL");

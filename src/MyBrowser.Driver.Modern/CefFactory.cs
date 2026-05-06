@@ -234,19 +234,19 @@ namespace MyBrowser.Driver.Modern
         {
             _log.Information("[ModernBrowserControl] LoadUrl: {Url}", url);
             _url = url;
-            _isLoading = true;
-            LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
 
             // 如果窗口句柄已设置但浏览器还未创建，则创建浏览器
             if (_windowHandle != IntPtr.Zero && _browserHandle == IntPtr.Zero)
             {
                 CreateBrowser();
+                return;
             }
 
-            // 触发加载完成事件（模拟）
-            _isLoading = false;
-            LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = 200 });
-            AddressChanged?.Invoke(this, new AddressChangedEventArgs { Address = url, IsMainFrame = true });
+            // 如果浏览器已创建，调用真实 CEF 导航
+            if (_browserHandle != IntPtr.Zero)
+            {
+                _browserFactory.LoadUrl(url);
+            }
         }
 
         public void GoBack()

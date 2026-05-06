@@ -406,6 +406,15 @@ namespace MyBrowser.Interop.cef.capi
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_host_set_size")]
         public static extern void cef_browser_host_set_size(IntPtr host, int width, int height);
+
+        [DllImport(cef_capi.DllName, EntryPoint = "cef_browser_get_main_frame")]
+        public static extern IntPtr cef_browser_get_main_frame(IntPtr browser);
+
+        [DllImport(cef_capi.DllName, EntryPoint = "cef_frame_load_url")]
+        public static extern void cef_frame_load_url(IntPtr frame, cef_string_t* url);
+
+        [DllImport(cef_capi.DllName, EntryPoint = "cef_frame_is_valid")]
+        public static extern int cef_frame_is_valid(IntPtr frame);
     }
 
     #endregion

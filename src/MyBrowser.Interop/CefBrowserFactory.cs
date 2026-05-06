@@ -307,6 +307,38 @@ namespace MyBrowser.Interop
         }
 
         /// <summary>
+        /// 导航到指定URL
+        /// </summary>
+        public void LoadUrl(string url)
+        {
+            if (BrowserHandle == IntPtr.Zero)
+            {
+                _log.Information("[CefBrowserFactory] Browser handle is zero, cannot load URL");
+                return;
+            }
+
+            var mainFrame = NativeMethods.cef_browser_get_main_frame(BrowserHandle);
+            if (mainFrame == IntPtr.Zero)
+            {
+                _log.Information("[CefBrowserFactory] Main frame is zero");
+                return;
+            }
+
+            var urlStr = Marshal.StringToHGlobalUni(url + "\0");
+            var cefUrl = new cef_string_t
+            {
+                str = (char*)urlStr,
+                length = (UIntPtr)url.Length,
+                dtor = IntPtr.Zero
+            };
+
+            NativeMethods.cef_frame_load_url(mainFrame, &cefUrl);
+            Marshal.FreeHGlobal(urlStr);
+
+            _log.Information("[CefBrowserFactory] LoadUrl: {Url}", url);
+        }
+
+        /// <summary>
         /// 检查是否正在加载
         /// </summary>
         public bool IsLoading()

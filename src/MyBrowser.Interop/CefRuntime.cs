@@ -138,8 +138,13 @@ namespace MyBrowser.Interop
             var ptr = Marshal.StringToHGlobalUni(value);
             cefStr.str = (char*)ptr;
             cefStr.length = (UIntPtr)value.Length;
-            cefStr.dtor = IntPtr.Zero;
+            cefStr.dtor = Marshal.GetFunctionPointerForDelegate<CefStringDtor>(FreeCefString);
         }
+
+        private static CefStringDtor? _stringDtor;
+        private static CefStringDtor CefStringDtorDelegate => _stringDtor ??= new CefStringDtor(FreeCefString);
+        private static void FreeCefString(char* str) => Marshal.FreeHGlobal((IntPtr)str);
+        public delegate void CefStringDtor(char* str);
 
         private static unsafe string GetString(cef_string_t cefStr)
         {
@@ -158,6 +163,7 @@ namespace MyBrowser.Interop
             _log.Information("[CefRuntime] Shutting down CEF...");
             NativeMethods.cef_shutdown();
             _shutdown = true;
+            _initialized = false;
             _log.Information("[CefRuntime] CEF shut down");
         }
 
