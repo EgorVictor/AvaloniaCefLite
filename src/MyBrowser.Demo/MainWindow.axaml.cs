@@ -5,7 +5,9 @@ namespace MyBrowser.Demo
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
+    using Avalonia.Layout;
     using Avalonia.VisualTree;
+    using System.Collections.Generic;
     using System.Runtime.InteropServices;
     using MyBrowser;
     using MyBrowser.Interop;
@@ -23,6 +25,8 @@ namespace MyBrowser.Demo
 
         private IBrowserFactory _factory;
         private IBrowserControl _browser;
+        private int _tabCounter;
+        private Dictionary<TabItem, BrowserView> _tabBrowserMap = new();
 
         public MainWindow()
         {
@@ -68,9 +72,10 @@ namespace MyBrowser.Demo
             }
 
             // 创建标签页
+            _tabCounter++;
             var tab = new TabItem
             {
-                Header = "新标签",
+                Header = $"标签{_tabCounter}",
                 Content = new BrowserView(_browser, this)
             };
             Tabs.Items.Add(tab);
@@ -98,17 +103,30 @@ namespace MyBrowser.Demo
             // 订阅弹窗事件 - 新标签页的弹窗也创建新标签
             browser.PopupRequested += (s, popupUrl) => Avalonia.Threading.Dispatcher.UIThread.Post(() => CreateTabWithUrl(popupUrl));
 
+            _tabCounter++;
+            var tabNumber = _tabCounter;
             var tab = new TabItem
             {
-                Header = "新标签",
+                Header = $"标签{tabNumber}",
                 Content = new BrowserView(browser, this)
             };
+
+            var browserView = tab.Content as BrowserView;
+            if (browserView != null)
+            {
+                _tabBrowserMap[tab] = browserView;
+            }
+
+            // 添加关闭按钮到 Header
+            var headerPanel = CreateTabHeader($"标签{tabNumber}", tab);
+            tab.Header = headerPanel;
 
             browser.TitleChanged += (s, e) =>
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    tab.Header = e.Title ?? "标签";
+                    var title = string.IsNullOrWhiteSpace(e.Title) ? $"标签{tabNumber}" : $"{e.Title} - 标签{tabNumber}";
+                    UpdateTabHeader(headerPanel, title);
                 });
             };
 
@@ -118,11 +136,59 @@ namespace MyBrowser.Demo
             browser.LoadUrl(url);
         }
 
+        private StackPanel CreateTabHeader(string title, TabItem tab)
+        {
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var textBlock = new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            panel.Children.Add(textBlock);
+
+            var closeButton = new Button
+            {
+                Content = "×",
+                Padding = new Thickness(4, 0, 4, 0),
+                Margin = new Thickness(0, 0, 4, 0),
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            closeButton.Click += (s, e) => CloseTab(tab);
+            panel.Children.Add(closeButton);
+
+            panel.Tag = tab;
+            return panel;
+        }
+
+        private void UpdateTabHeader(StackPanel panel, string title)
+        {
+            if (panel?.Children[0] is TextBlock textBlock)
+            {
+                textBlock.Text = title;
+            }
+        }
+
+        private void CloseTab(TabItem tab)
+        {
+            if (_tabBrowserMap.TryGetValue(tab, out var browserView))
+            {
+                browserView.Cleanup();
+                _tabBrowserMap.Remove(tab);
+            }
+
+            Tabs.Items.Remove(tab);
+        }
+
         private BrowserView ActiveBrowser => Tabs.SelectedContent as BrowserView;
 
         private void OnNewTab(object sender, RoutedEventArgs e) => CreateNewTab();
 
-        private void OnExit(object sender, RoutedEventArgs e) => Close();
+        private void OnExit(object sender, RoutedEventArgs e)
+        {
+            foreach (var kvp in _tabBrowserMap)
+            {
+                kvp.Value.Cleanup();
+            }
+            _tabBrowserMap.Clear();
+            Close();
+        }
 
         private void OnBack(object sender, RoutedEventArgs e) => ActiveBrowser?.GoBack();
 
@@ -154,6 +220,7 @@ namespace MyBrowser.Demo
         private readonly Window _parentWindow;
         private IntPtr _containerHwnd;
         private bool _browserCreated;
+        private bool _disposed;
 
         public BrowserView(IBrowserControl browser, Window parentWindow)
         {
@@ -171,7 +238,6 @@ namespace MyBrowser.Demo
             _browser.BrowserInitialized += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateNativeBounds());
 
             Loaded += OnLoaded;
-            DetachedFromVisualTree += OnDetachedFromVisualTree;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -181,8 +247,11 @@ namespace MyBrowser.Demo
             UpdateNativeBounds();
         }
 
-        private void OnDetachedFromVisualTree(object sender, VisualTreeAttachmentEventArgs e)
+        public void Cleanup()
         {
+            if (_disposed) return;
+            _disposed = true;
+
             if (_browser != null)
             {
                 _browser.Dispose();
