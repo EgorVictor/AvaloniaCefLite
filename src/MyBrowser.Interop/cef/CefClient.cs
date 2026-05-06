@@ -48,6 +48,7 @@ namespace MyBrowser.Interop.cef
 
         private CefLifeSpanHandler _lifeSpanHandler;
         private CefLoadHandler _loadHandler;
+        private CefDisplayHandler _displayHandler;
 
         public IntPtr Handle => _clientPtr;
         public IntPtr BrowserHandle { get; private set; }
@@ -71,6 +72,7 @@ namespace MyBrowser.Interop.cef
             // Create child handlers (they hold references to us)
             _lifeSpanHandler = new CefLifeSpanHandler(this);
             _loadHandler = new CefLoadHandler(this);
+            _displayHandler = new CefDisplayHandler(this);
 
             // Store delegates as fields to prevent GC
             _addRef = AddRef;
@@ -139,7 +141,7 @@ namespace MyBrowser.Interop.cef
         private IntPtr GetCommandHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetContextMenuHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetDialogHandler(IntPtr self) => IntPtr.Zero;
-        private IntPtr GetDisplayHandler(IntPtr self) => IntPtr.Zero;
+        private IntPtr GetDisplayHandler(IntPtr self) => _displayHandler.Handle;
         private IntPtr GetDownloadHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetDragHandler(IntPtr self) => IntPtr.Zero;
         private IntPtr GetFindHandler(IntPtr self) => IntPtr.Zero;
@@ -220,6 +222,7 @@ namespace MyBrowser.Interop.cef
 
             _lifeSpanHandler?.Dispose();
             _loadHandler?.Dispose();
+            _displayHandler?.Dispose();
 
             if (_clientPtr != IntPtr.Zero)
             {
@@ -535,6 +538,104 @@ namespace MyBrowser.Interop.cef
             {
                 _selfHandle.Free();
             }
+        }
+    }
+
+    #endregion
+
+    #region DisplayHandler
+
+    public sealed unsafe class CefDisplayHandler : IDisposable
+    {
+        private readonly CefClient _parent;
+        private GCHandle _selfHandle;
+        private cef_display_handler_t _handler;
+        private IntPtr _handlerPtr;
+        private bool _disposed;
+        private int _refCount = 1;
+
+        private cef_base_ref_counted_add_ref _addRef;
+        private cef_base_ref_counted_release _release;
+        private cef_base_ref_counted_has_one_ref _hasOneRef;
+        private cef_base_ref_counted_has_at_least_one_ref _hasAtLeastOneRef;
+        private cef_display_handler_on_title_change _onTitleChange;
+        private cef_display_handler_on_address_change _onAddressChange;
+
+        public IntPtr Handle => _handlerPtr;
+
+        public CefDisplayHandler(CefClient parent)
+        {
+            _parent = parent;
+            _selfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+
+            _addRef = AddRef;
+            _release = Release;
+            _hasOneRef = HasOneRef;
+            _hasAtLeastOneRef = HasAtLeastOneRef;
+            _onTitleChange = OnTitleChange;
+            _onAddressChange = OnAddressChange;
+
+            _handler = new cef_display_handler_t
+            {
+                base_ = new cef_base_ref_counted_t
+                {
+                    size = (UIntPtr)sizeof(cef_display_handler_t),
+                    add_ref = Marshal.GetFunctionPointerForDelegate(_addRef),
+                    release = Marshal.GetFunctionPointerForDelegate(_release),
+                    has_one_ref = Marshal.GetFunctionPointerForDelegate(_hasOneRef),
+                    has_at_least_one_ref = Marshal.GetFunctionPointerForDelegate(_hasAtLeastOneRef)
+                },
+                on_title_change = Marshal.GetFunctionPointerForDelegate(_onTitleChange),
+                on_address_change = Marshal.GetFunctionPointerForDelegate(_onAddressChange),
+                on_tooltip = IntPtr.Zero,
+                on_status_message = IntPtr.Zero,
+                on_console_message = IntPtr.Zero,
+                on_auto_fill = IntPtr.Zero,
+            };
+
+            _handlerPtr = Marshal.AllocHGlobal(sizeof(cef_display_handler_t));
+            Marshal.StructureToPtr(_handler, _handlerPtr, false);
+        }
+
+        private void AddRef(IntPtr self) => Interlocked.Increment(ref _refCount);
+        private int Release(IntPtr self)
+        {
+            var newCount = Interlocked.Decrement(ref _refCount);
+            return (newCount == 0) ? 1 : 0;
+        }
+        private int HasOneRef(IntPtr self) => _refCount == 1 ? 1 : 0;
+        private int HasAtLeastOneRef(IntPtr self) => _refCount >= 1 ? 1 : 0;
+
+        private void OnTitleChange(IntPtr self, IntPtr browser, IntPtr title)
+        {
+            var url = GetCefString(title);
+            _parent.OnTitleChanged(url);
+        }
+
+        private void OnAddressChange(IntPtr self, IntPtr browser, IntPtr frame, IntPtr url)
+        {
+            var address = GetCefString(url);
+            _parent.OnAddressChanged(address);
+        }
+
+        private static unsafe string GetCefString(IntPtr ptr)
+        {
+            if (ptr == IntPtr.Zero) return string.Empty;
+            var cefStr = (cef_string_t*)ptr;
+            if (cefStr->str == null || cefStr->length == UIntPtr.Zero) return string.Empty;
+            return Marshal.PtrToStringUni((IntPtr)cefStr->str, (int)cefStr->length) ?? string.Empty;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            if (_handlerPtr != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_handlerPtr);
+                _handlerPtr = IntPtr.Zero;
+            }
+            if (_selfHandle.IsAllocated) _selfHandle.Free();
         }
     }
 

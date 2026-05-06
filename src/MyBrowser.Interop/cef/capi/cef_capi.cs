@@ -225,6 +225,29 @@ namespace MyBrowser.Interop.cef.capi
 
     #endregion
 
+    #region DisplayHandler
+
+    public unsafe delegate void cef_display_handler_on_title_change(IntPtr self, IntPtr browser, IntPtr title);
+    public unsafe delegate void cef_display_handler_on_address_change(IntPtr self, IntPtr browser, IntPtr frame, IntPtr url);
+    public unsafe delegate int cef_display_handler_on_tooltip(IntPtr self, IntPtr browser, IntPtr text);
+    public unsafe delegate void cef_display_handler_on_status_message(IntPtr self, IntPtr browser, IntPtr value);
+    public unsafe delegate int cef_display_handler_on_console_message(IntPtr self, IntPtr browser, IntPtr frame, int level, IntPtr message, IntPtr source, int line);
+    public unsafe delegate int cef_display_handler_on_auto_fill(IntPtr self, IntPtr browser, IntPtr frame, IntPtr form, int row);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct cef_display_handler_t
+    {
+        public cef_base_ref_counted_t base_;
+        public IntPtr on_title_change;
+        public IntPtr on_address_change;
+        public IntPtr on_tooltip;
+        public IntPtr on_status_message;
+        public IntPtr on_console_message;
+        public IntPtr on_auto_fill;
+    }
+
+    #endregion
+
     #region Browser Handler (Display)
 
     public unsafe delegate void cef_browser_handler_on_title_change(IntPtr self, IntPtr browser, IntPtr title);
