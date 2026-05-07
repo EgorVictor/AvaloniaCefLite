@@ -1,11 +1,13 @@
 namespace MyBrowser.Demo
 {
     using System;
+    using System.Threading.Tasks;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
     using Avalonia.Layout;
+    using Avalonia.Threading;
     using Avalonia.VisualTree;
     using System.Collections.Generic;
     using System.Runtime.InteropServices;
@@ -20,7 +22,7 @@ namespace MyBrowser.Demo
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         private IBrowserFactory _factory;
@@ -31,6 +33,25 @@ namespace MyBrowser.Demo
         public MainWindow()
         {
             InitializeComponent();
+
+            if (Environment.OSVersion.Version.Major < 10)
+            {
+                var cefTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(10)
+                };
+                cefTimer.Tick += (_, _) =>
+                {
+                    try
+                    {
+                        CefRuntime.DoMessageLoopWork();
+                    }
+                    catch
+                    {
+                    }
+                };
+                cefTimer.Start();
+            }
         }
 
         /// <summary>

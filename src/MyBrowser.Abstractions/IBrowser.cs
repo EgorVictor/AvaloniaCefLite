@@ -146,7 +146,7 @@ namespace MyBrowser
                 RuntimePath = config.RuntimePath ?? string.Empty,
                 CachePath = config.CachePath,
                 BrowserSubprocessPath = subprocessPath,
-                MultiThreadedMessageLoop = true,
+                MultiThreadedMessageLoop = !isWin7Or8,
                 DisableGpu = disableGpu,
                 DisableWebGL = isWin7Or8,
                 IgnoreCertificateErrors = false, // Explicitly configurable, default off for security
