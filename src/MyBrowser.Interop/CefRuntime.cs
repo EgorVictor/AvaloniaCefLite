@@ -68,6 +68,7 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] DisableGpu: {DisableGpu}", options.DisableGpu);
                 _log.Information("[CefRuntime] MultiThreadedMessageLoop: {MTML}", options.MultiThreadedMessageLoop);
                 _log.Information("[CefRuntime] CompatibilityMode: {CompatibilityMode}", options.CompatibilityMode);
+                _log.Information("[CefRuntime] Win7RenderMode: {Win7RenderMode}", options.Win7RenderMode);
                 _log.Information("[CefRuntime] instanceHandle: {0}", (long)instanceHandle);
 
                 var isWin7 = options.CompatibilityMode == CefCompatibilityMode.Win7Compatible;
@@ -143,7 +144,7 @@ namespace MyBrowser.Interop
                 var logFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
                 SetCefString(ref settings.log_file, logFile);
 
-                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors);
+                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors, win7RenderMode: options.Win7RenderMode);
                 _app.ContextInitialized += (s, e) =>
                 {
                     IsContextReady = true;

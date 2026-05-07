@@ -244,7 +244,7 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero) return;
             // cef_browser_t vtable: go_back = offset 64
-            var ptr = Marshal.ReadIntPtr(BrowserHandle, 64);
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserGoBack);
             if (ptr != IntPtr.Zero)
                 Marshal.GetDelegateForFunctionPointer<cef_browser_go_back>(ptr)(BrowserHandle);
         }
@@ -256,7 +256,7 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero) return;
             // cef_browser_t vtable: go_forward = offset 80
-            var ptr = Marshal.ReadIntPtr(BrowserHandle, 80);
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserGoForward);
             if (ptr != IntPtr.Zero)
                 Marshal.GetDelegateForFunctionPointer<cef_browser_go_forward>(ptr)(BrowserHandle);
         }
@@ -268,7 +268,7 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero) return;
             // cef_browser_t vtable: reload = offset 96
-            var ptr = Marshal.ReadIntPtr(BrowserHandle, 96);
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserReload);
             if (ptr != IntPtr.Zero)
                 Marshal.GetDelegateForFunctionPointer<cef_browser_reload>(ptr)(BrowserHandle);
         }
@@ -280,7 +280,7 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero) return;
             // cef_browser_t vtable: reload_ignore_cache = offset 104
-            var ptr = Marshal.ReadIntPtr(BrowserHandle, 104);
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserReloadIgnoreCache);
             if (ptr != IntPtr.Zero)
                 Marshal.GetDelegateForFunctionPointer<cef_browser_reload_ignore_cache>(ptr)(BrowserHandle);
         }
@@ -292,7 +292,7 @@ namespace MyBrowser.Interop
         {
             if (BrowserHandle == IntPtr.Zero) return;
             // cef_browser_t vtable: stop_load = offset 112
-            var ptr = Marshal.ReadIntPtr(BrowserHandle, 112);
+            var ptr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserStopLoad);
             if (ptr != IntPtr.Zero)
                 Marshal.GetDelegateForFunctionPointer<cef_browser_stop_load>(ptr)(BrowserHandle);
         }
@@ -340,7 +340,7 @@ namespace MyBrowser.Interop
             }
 
             // get_main_frame is vtable offset 152 in cef_browser_t
-            var getMainFramePtr = Marshal.ReadIntPtr(BrowserHandle, 152);
+            var getMainFramePtr = Marshal.ReadIntPtr(BrowserHandle, Cef109VTableOffsets.BrowserGetMainFrame);
             if (getMainFramePtr == IntPtr.Zero)
             {
                 return;
@@ -353,7 +353,7 @@ namespace MyBrowser.Interop
             }
 
             // load_url is vtable offset 136 in cef_frame_t
-            var loadUrlPtr = Marshal.ReadIntPtr(mainFrame, 136);
+            var loadUrlPtr = Marshal.ReadIntPtr(mainFrame, Cef109VTableOffsets.FrameLoadUrl);
             if (loadUrlPtr == IntPtr.Zero)
             {
                 return;
@@ -498,7 +498,7 @@ namespace MyBrowser.Interop
             // 56: try_close_browser
             // 64: set_focus
             // 72: get_window_handle
-            var ptr = Marshal.ReadIntPtr(_browserHostHandle, 72);
+            var ptr = Marshal.ReadIntPtr(_browserHostHandle, Cef109VTableOffsets.BrowserHostGetWindowHandle);
             if (ptr == IntPtr.Zero)
             {
                 return IntPtr.Zero;

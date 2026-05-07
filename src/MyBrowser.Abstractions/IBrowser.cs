@@ -48,6 +48,16 @@ namespace MyBrowser
     }
 
     /// <summary>
+    /// Win7 渲染模式
+    /// </summary>
+    public enum CefWin7RenderMode
+    {
+        SafeNoGpu,
+        SwiftShader,
+        D3D9Performance
+    }
+
+    /// <summary>
     /// 浏览器初始化配置
     /// </summary>
     public class BrowserConfig
@@ -106,6 +116,21 @@ namespace MyBrowser
         /// 忽略证书错误（仅用于内网/调试环境）
         /// </summary>
         public bool IgnoreCertificateErrors { get; set; }
+
+        /// <summary>
+        /// 子进程路径（默认指向当前主程序，可设为轻量专用 subprocess exe）
+        /// </summary>
+        public string? BrowserSubprocessPath { get; set; }
+
+        /// <summary>
+        /// Win7 渲染模式（默认 SafeNoGpu）
+        /// </summary>
+        public CefWin7RenderMode Win7RenderMode { get; set; } = CefWin7RenderMode.SafeNoGpu;
+
+        /// <summary>
+        /// 页面加载超时时间（秒），默认 30 秒
+        /// </summary>
+        public int LoadTimeoutSeconds { get; set; } = 30;
     }
 
     /// <summary>
@@ -123,6 +148,7 @@ namespace MyBrowser
         public int RemoteDebuggingPort { get; set; }
         public CefLogLevel LogSeverity { get; set; } = CefLogLevel.Warning;
         public CefCompatibilityMode CompatibilityMode { get; set; } = CefCompatibilityMode.Auto;
+        public CefWin7RenderMode Win7RenderMode { get; set; } = CefWin7RenderMode.SafeNoGpu;
 
         public static CefRuntimeOptions FromConfig(BrowserConfig config, Version osVersion)
         {
@@ -132,14 +158,19 @@ namespace MyBrowser
                 : config.CompatibilityMode;
 
             var disableGpu = config.HardwareAcceleration == false
-                || (config.HardwareAcceleration == null && isWin7Or8);
+                || (config.HardwareAcceleration == null && isWin7Or8)
+                || (config.Win7RenderMode == CefWin7RenderMode.SafeNoGpu && config.HardwareAcceleration != true);
 
-            var subprocessPath = config.RuntimePath;
-            try
+            // Use configured subprocess path, or fall back to current process
+            var subprocessPath = config.BrowserSubprocessPath;
+            if (string.IsNullOrWhiteSpace(subprocessPath))
             {
-                subprocessPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                try
+                {
+                    subprocessPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                }
+                catch { }
             }
-            catch { }
 
             return new CefRuntimeOptions
             {
@@ -152,7 +183,8 @@ namespace MyBrowser
                 IgnoreCertificateErrors = false, // Explicitly configurable, default off for security
                 RemoteDebuggingPort = (config.EnableRemoteDebugging && !isWin7Or8) ? config.RemoteDebuggingPort : 0,
                 LogSeverity = isWin7Or8 ? CefLogLevel.Warning : config.LogLevel,
-                CompatibilityMode = compatibilityMode
+                CompatibilityMode = compatibilityMode,
+                Win7RenderMode = config.Win7RenderMode
             };
         }
     }

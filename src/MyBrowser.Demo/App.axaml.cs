@@ -4,6 +4,7 @@ namespace MyBrowser.Demo
     using Avalonia.Controls.ApplicationLifetimes;
     using Avalonia.Controls;
     using System;
+    using System.IO;
 
     /// <summary>
     /// Avalonia应用程序入口
@@ -16,10 +17,16 @@ namespace MyBrowser.Demo
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
+                var baseDir = AppContext.BaseDirectory;
                 var factory = CefDispatcher.Boot(new BrowserConfig
                 {
                     InitialUrl = "about:blank",
-                    CachePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyBrowser", "Cef109", "Cache")
+                    BrowserSubprocessPath = Path.Combine(baseDir, "MyBrowser.Subprocess.exe"),
+                    CachePath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "MyBrowser",
+                        "Cef109",
+                        "Cache")
                 });
 
                 var window = new MainWindow();

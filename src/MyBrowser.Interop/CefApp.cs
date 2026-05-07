@@ -38,6 +38,7 @@ namespace MyBrowser.Interop
         private readonly bool _isWin7Or8;
         private readonly bool _hardwareAcceleration;
         private readonly bool _ignoreCertificateErrors;
+        private readonly MyBrowser.CefWin7RenderMode _win7RenderMode;
 
         // Delegate fields - MUST be kept alive to prevent GC
         private cef_base_add_ref _appAddRef;
@@ -57,12 +58,13 @@ namespace MyBrowser.Interop
         public event EventHandler<long>? ScheduleMessagePumpWork;
         public IntPtr Handle => _appPtr;
 
-        public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true, bool ignoreCertificateErrors = false)
+        public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true, bool ignoreCertificateErrors = false, MyBrowser.CefWin7RenderMode win7RenderMode = MyBrowser.CefWin7RenderMode.SafeNoGpu)
         {
             _isWin7Or8 = isWin7Or8;
             _hardwareAcceleration = hardwareAcceleration;
             _ignoreCertificateErrors = ignoreCertificateErrors;
-            _log.Information("[CefApp] Created: isWin7Or8={IsWin7Or8}, hwAccel={HwAccel}, ignoreCert={IgnoreCert}", _isWin7Or8, _hardwareAcceleration, _ignoreCertificateErrors);
+            _win7RenderMode = win7RenderMode;
+            _log.Information("[CefApp] Created: isWin7Or8={IsWin7Or8}, hwAccel={HwAccel}, ignoreCert={IgnoreCert}, win7RenderMode={Win7RenderMode}", _isWin7Or8, _hardwareAcceleration, _ignoreCertificateErrors, _win7RenderMode);
 
             _selfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
             _bphSelfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
@@ -169,21 +171,42 @@ namespace MyBrowser.Interop
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
             var process = GetCefString(processType);
-            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel}", process, _isWin7Or8, _hardwareAcceleration);
-
-            // Only apply flags in the main browser process (processType is empty)
-            if (!string.IsNullOrEmpty(process)) return;
+            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel} win7RenderMode={Win7RenderMode}", process, _isWin7Or8, _hardwareAcceleration, _win7RenderMode);
 
             if (!_hardwareAcceleration)
             {
-                _log.Information("[CefApp] Applying no-GPU compatibility flags");
+                switch (_win7RenderMode)
+                {
+                    case MyBrowser.CefWin7RenderMode.SafeNoGpu:
+                        _log.Information("[CefApp] Applying SafeNoGpu flags");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
+                        CommandLineAppendSwitch(commandLine, "disable-webgl");
+                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu-rasterization");
+                        CommandLineAppendSwitch(commandLine, "disable-zero-copy");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu-watchdog");
+                        CommandLineAppendSwitch(commandLine, "disable-software-rasterizer");
+                        CommandLineAppendSwitch(commandLine, "in-process-gpu");
+                        break;
 
-                CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
-                CommandLineAppendSwitch(commandLine, "disable-webgl");
-                CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                CommandLineAppendSwitch(commandLine, "disable-gpu");
-                CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
-                CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
+                    case MyBrowser.CefWin7RenderMode.SwiftShader:
+                        _log.Information("[CefApp] Applying SwiftShader flags");
+                        CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
+                        CommandLineAppendSwitch(commandLine, "disable-webgl");
+                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                        CommandLineAppendSwitch(commandLine, "disable-features=Vulkan");
+                        break;
+
+                    case MyBrowser.CefWin7RenderMode.D3D9Performance:
+                        _log.Information("[CefApp] Applying D3D9Performance flags");
+                        CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
+                        CommandLineAppendSwitch(commandLine, "disable-webgl");
+                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                        CommandLineAppendSwitch(commandLine, "disable-features=Vulkan");
+                        break;
+                }
 
                 if (_ignoreCertificateErrors)
                 {

@@ -320,13 +320,9 @@ namespace MyBrowser.Interop.cef
         private int OnBeforePopup(IntPtr self, IntPtr browser, IntPtr frame, IntPtr targetUrl, IntPtr targetFrameName, int targetDisposition, int userGesture, IntPtr popupFeatures, IntPtr windowInfo, IntPtr client, IntPtr settings, IntPtr extraInfo, int* noJavascriptAccess)
         {
             var url = CefDisplayHandler.GetCefString(targetUrl);
-            _log.Information("[CefLifeSpanHandler] OnBeforePopup: url={Url}, disposition={Disposition}", url, targetDisposition);
+            _log.Information("[CefLifeSpanHandler] OnBeforePopup BLOCKED: url={Url}, disposition={Disposition}", url, targetDisposition);
             *noJavascriptAccess = 0;
-            if (!string.IsNullOrEmpty(url))
-            {
-                _parent.OnPopupRequested(url);
-            }
-            return 1;
+            return 0;
         }
 
         private void OnAfterCreated(IntPtr self, IntPtr browser)

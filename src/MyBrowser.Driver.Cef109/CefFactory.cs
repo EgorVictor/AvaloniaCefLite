@@ -3,6 +3,7 @@ namespace MyBrowser.Driver.Cef109
     using System;
     using System.IO;
     using System.Runtime.InteropServices;
+    using System.Threading;
     using MyBrowser;
     using MyBrowser.Interop;
     using Serilog;
@@ -21,8 +22,7 @@ namespace MyBrowser.Driver.Cef109
         private BrowserConfig _config;
         private CefCompatibilityMode _policy;
         private bool _initialized;
-        private CefBrowserFactory _browserFactory;
-        private IntPtr _browserHandle;
+        private bool _disableWebGL;
         
         public static string DriverDirectory { get; private set; }
 
@@ -65,7 +65,7 @@ namespace MyBrowser.Driver.Cef109
             CefRuntime.Initialize(GetModuleHandle(null), options);
             _log.Information("[Cef109Factory] CefRuntime.Initialize returned");
 
-            _browserFactory = new CefBrowserFactory { DisableWebGL = options.DisableWebGL };
+            _disableWebGL = options.DisableWebGL;
             _initialized = true;
 
             _log.Information("[Cef109Factory] CEF 109 初始化完成");
@@ -78,15 +78,13 @@ namespace MyBrowser.Driver.Cef109
 
             _log.Information("[Cef109Factory] 正在创建浏览器控件...");
 
-            return new Cef109BrowserControl(_config, DriverDirectory, _browserFactory);
+            var browserFactory = new CefBrowserFactory { DisableWebGL = _disableWebGL };
+            return new Cef109BrowserControl(_config, DriverDirectory, browserFactory);
         }
 
         public void Shutdown()
         {
             _log.Information("[Cef109Factory] 正在关闭...");
-
-            _browserFactory?.Dispose();
-            _browserFactory = null;
 
             CefRuntime.Shutdown();
             _initialized = false;
@@ -121,13 +119,16 @@ namespace MyBrowser.Driver.Cef109
         private bool _isLoading;
         private bool _canGoBack;
         private bool _canGoForward;
+        private Timer? _loadTimer;
+        private readonly int _loadTimeoutMs;
 
         public Cef109BrowserControl(BrowserConfig config, string driverDir, CefBrowserFactory browserFactory)
         {
             _config = config;
             _driverDir = driverDir;
             _browserFactory = browserFactory;
-            _url = config.InitialUrl;
+            _url = BrowserUrlNormalizer.Normalize(config.InitialUrl);
+            _loadTimeoutMs = Math.Max(5000, config.LoadTimeoutSeconds * 1000);
 
             _browserFactory.Client.LoadStart += (s, e) => OnCefLoadStart();
             _browserFactory.Client.LoadEnd += (s, code) => OnCefLoadEnd(code);
@@ -222,8 +223,12 @@ namespace MyBrowser.Driver.Cef109
 
         public void LoadUrl(string url)
         {
-            _log.Information("[Cef109BrowserControl] LoadUrl: {Url}", url);
-            _url = url;
+            var normalizedUrl = BrowserUrlNormalizer.Normalize(url);
+            _log.Information("[Cef109BrowserControl] LoadUrl: {OriginalUrl} -> {NormalizedUrl}", url, normalizedUrl);
+            _url = normalizedUrl;
+
+            _loadTimer?.Dispose();
+            _loadTimer = new Timer(OnLoadTimeout, null, _loadTimeoutMs, Timeout.Infinite);
 
             if (_windowHandle != IntPtr.Zero && _browserHandle == IntPtr.Zero)
             {
@@ -241,8 +246,15 @@ namespace MyBrowser.Driver.Cef109
 
             if (_browserHandle != IntPtr.Zero)
             {
-                _browserFactory.LoadUrl(url);
+                _browserFactory.LoadUrl(normalizedUrl);
             }
+        }
+
+        private void OnLoadTimeout(object? state)
+        {
+            _log.Information("[Cef109BrowserControl] Load timeout, stopping navigation");
+            Stop();
+            LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = -1 });
         }
 
         public void GoBack()
@@ -280,6 +292,8 @@ namespace MyBrowser.Driver.Cef109
                 _browserFactory.StopLoad();
             }
             _isLoading = false;
+            _loadTimer?.Dispose();
+            _loadTimer = null;
         }
 
         public void ExecuteJavaScript(string script)
@@ -309,6 +323,8 @@ namespace MyBrowser.Driver.Cef109
         private void OnCefLoadEnd(int httpStatusCode)
         {
             _isLoading = false;
+            _loadTimer?.Dispose();
+            _loadTimer = null;
             _log.Information("[Cef109BrowserControl] CEF OnLoadEnd, StatusCode: {Code}", httpStatusCode);
             LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = httpStatusCode });
         }
@@ -316,6 +332,8 @@ namespace MyBrowser.Driver.Cef109
         private void OnCefLoadError(string error)
         {
             _isLoading = false;
+            _loadTimer?.Dispose();
+            _loadTimer = null;
             _log.Information("[Cef109BrowserControl] CEF OnLoadError: {Error}", error);
         }
 

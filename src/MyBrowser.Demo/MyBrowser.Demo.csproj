@@ -5,6 +5,7 @@
         <AvaloniaVersion>11.3.7</AvaloniaVersion>
         <RootNamespace>MyBrowser.Demo</RootNamespace>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -19,18 +20,34 @@
         <ProjectReference Include="..\MyBrowser.Driver.Cef109\MyBrowser.Driver.Cef109.csproj">
             <Private>false</Private>
         </ProjectReference>
+        <ProjectReference Include="..\MyBrowser.Subprocess\MyBrowser.Subprocess.csproj">
+            <Private>false</Private>
+        </ProjectReference>
     </ItemGroup>
+
+    <!-- 开发时构建也复制 subprocess exe -->
+    <Target Name="CopySubprocessExe" AfterTargets="Build">
+        <PropertyGroup>
+            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\</SubprocessSourceDir>
+            <DemoOutputDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\</DemoOutputDir>
+        </PropertyGroup>
+        <Copy SourceFiles="$(SubprocessSourceDir)MyBrowser.Subprocess.exe" DestinationFiles="$(DemoOutputDir)MyBrowser.Subprocess.exe" SkipUnchangedFiles="true" />
+        <Message Text="Subprocess exe copied to output directory" Importance="high" />
+    </Target>
 
     <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
     <Target Name="CopyCefResources" BeforeTargets="Publish">
         <PropertyGroup>
             <CefSourceDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\runtimes\Cef109\</CefSourceDir>
             <CefPublishDir>$(PublishDir)</CefPublishDir>
+            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\</SubprocessSourceDir>
         </PropertyGroup>
         <ItemGroup>
             <CefFiles Include="$(CefSourceDir)**\*" />
+            <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.exe" />
         </ItemGroup>
         <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <Message Text="CEF resources copied to: runtimes\Cef109\" Importance="high" />
+        <Copy SourceFiles="@(SubprocessFiles)" DestinationFiles="$(CefPublishDir)MyBrowser.Subprocess.exe" SkipUnchangedFiles="true" />
+        <Message Text="CEF resources and subprocess copied" Importance="high" />
     </Target>
 </Project>

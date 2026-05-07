@@ -12,6 +12,24 @@ namespace MyBrowser.Demo
         [STAThread]
         static void Main(string[] args)
         {
+            var isCefSubprocess = false;
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith("--type=", StringComparison.OrdinalIgnoreCase))
+                {
+                    isCefSubprocess = true;
+                    break;
+                }
+            }
+
+            if (isCefSubprocess)
+            {
+                ConfigureCefNativeSearchPath();
+                var subExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
+                Environment.Exit(subExitCode);
+                return;
+            }
+
             WriteEarlyLog("[Program] === Application starting ===");
             WriteEarlyLog("[Program] OS Version: {0}", Environment.OSVersion.VersionString);
             WriteEarlyLog("[Program] CLR Version: {0}", Environment.Version);
