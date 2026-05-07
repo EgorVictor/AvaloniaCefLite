@@ -101,6 +101,11 @@ namespace MyBrowser
         /// 日志级别
         /// </summary>
         public CefLogLevel LogLevel { get; set; } = CefLogLevel.Warning;
+
+        /// <summary>
+        /// 忽略证书错误（仅用于内网/调试环境）
+        /// </summary>
+        public bool IgnoreCertificateErrors { get; set; }
     }
 
     /// <summary>

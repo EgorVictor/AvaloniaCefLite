@@ -16,13 +16,15 @@
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Dispatcher\MyBrowser.Dispatcher.csproj" />
         <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
-        <ProjectReference Include="..\MyBrowser.Driver.Cef109\MyBrowser.Driver.Cef109.csproj" />
+        <ProjectReference Include="..\MyBrowser.Driver.Cef109\MyBrowser.Driver.Cef109.csproj">
+            <Private>false</Private>
+        </ProjectReference>
     </ItemGroup>
 
     <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
     <Target Name="CopyCefResources" BeforeTargets="Publish">
         <PropertyGroup>
-            <CefSourceDir>$(MSBuildThisFileDirectory)bin\Debug\net8.0\runtimes\Cef109\</CefSourceDir>
+            <CefSourceDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\runtimes\Cef109\</CefSourceDir>
             <CefPublishDir>$(PublishDir)</CefPublishDir>
         </PropertyGroup>
         <ItemGroup>

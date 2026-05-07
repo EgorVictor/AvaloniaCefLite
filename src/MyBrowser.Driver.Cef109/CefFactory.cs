@@ -41,8 +41,10 @@ namespace MyBrowser.Driver.Cef109
             _config = config ?? new BrowserConfig();
             _policy = policy;
 
-            DriverDirectory = Path.GetDirectoryName(typeof(Cef109Factory).Assembly.Location)
-                ?? throw new InvalidOperationException("无法确定驱动目录");
+            DriverDirectory = !string.IsNullOrWhiteSpace(_config.RuntimePath)
+                ? _config.RuntimePath
+                : Path.GetDirectoryName(typeof(Cef109Factory).Assembly.Location)
+                    ?? throw new InvalidOperationException("无法确定驱动目录");
 
             _log.Information("[Cef109Factory] 正在初始化 CEF 109...");
             _log.Information("[Cef109Factory] 驱动目录: {DriverDirectory}", DriverDirectory);
@@ -56,6 +58,7 @@ namespace MyBrowser.Driver.Cef109
             var options = CefRuntimeOptions.FromConfig(_config, Environment.OSVersion.Version);
             options.RuntimePath = DriverDirectory;
             options.CompatibilityMode = _policy;
+            options.IgnoreCertificateErrors = _config.IgnoreCertificateErrors;
 
             CefRuntime.Initialize(GetModuleHandle(null), options);
 
