@@ -174,9 +174,9 @@ namespace MyBrowser.Interop
             // Only apply flags in the main browser process (processType is empty)
             if (!string.IsNullOrEmpty(process)) return;
 
-            if (_isWin7Or8 || !_hardwareAcceleration)
+            if (!_hardwareAcceleration)
             {
-                _log.Information("[CefApp] Applying Win7/no-GPU compatibility flags");
+                _log.Information("[CefApp] Applying no-GPU compatibility flags");
 
                 CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
                 CommandLineAppendSwitch(commandLine, "disable-webgl");
@@ -184,7 +184,7 @@ namespace MyBrowser.Interop
                 CommandLineAppendSwitch(commandLine, "disable-gpu");
                 CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
                 CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
-                
+
                 if (_ignoreCertificateErrors)
                 {
                     _log.Information("[CefApp] ignore-certificate-errors is ENABLED");
@@ -193,7 +193,7 @@ namespace MyBrowser.Interop
             }
             else
             {
-                _log.Information("[CefApp] Win10+ with GPU acceleration enabled");
+                _log.Information(_isWin7Or8 ? "[CefApp] Win7 with GPU acceleration enabled" : "[CefApp] Win10+ with GPU acceleration enabled");
             }
         }
 
