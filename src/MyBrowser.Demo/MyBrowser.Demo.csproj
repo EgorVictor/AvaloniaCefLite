@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <AvaloniaVersion>11.3.7</AvaloniaVersion>
+        <RootNamespace>MyBrowser.Demo</RootNamespace>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="Avalonia.Win32" Version="$(AvaloniaVersion)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\MyBrowser.Dispatcher\MyBrowser.Dispatcher.csproj" />
+        <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
+        <ProjectReference Include="..\MyBrowser.Driver.Cef109\MyBrowser.Driver.Cef109.csproj" />
+    </ItemGroup>
+
+    <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
+    <Target Name="CopyCefResources" BeforeTargets="Publish">
+        <PropertyGroup>
+            <CefSourceDir>$(MSBuildThisFileDirectory)bin\Debug\net8.0\runtimes\Cef109\</CefSourceDir>
+            <CefPublishDir>$(PublishDir)</CefPublishDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <CefFiles Include="$(CefSourceDir)**\*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+        <Message Text="CEF resources copied to: runtimes\Cef109\" Importance="high" />
+    </Target>
+</Project>

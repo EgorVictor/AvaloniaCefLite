@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MyBrowser.Demo.MainWindow"
+        Title="MyBrowser Demo"
+        Width="900"
+        Height="600"
+        WindowState="Normal">
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New Tab" Click="OnNewTab"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="OnExit"/>
+            </MenuItem>
+            <MenuItem Header="_Browser">
+                <MenuItem Header="_Back" Click="OnBack"/>
+                <MenuItem Header="_Forward" Click="OnForward"/>
+                <MenuItem Header="_Reload" Click="OnReload"/>
+            </MenuItem>
+        </Menu>
+
+        <Border DockPanel.Dock="Top" Padding="5" Background="#f0f0f0">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Button Content="Back" Width="60" Click="OnBack"/>
+                <Button Content="Forward" Width="60" Click="OnForward"/>
+                <Button Content="Reload" Width="60" Click="OnReload"/>
+                <TextBox x:Name="UrlTextBox" Width="600" Watermark="Enter URL..."/>
+                <Button Content="Go" Width="40" Click="OnGo"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl x:Name="Tabs">
+        </TabControl>
+    </DockPanel>
+</Window>
