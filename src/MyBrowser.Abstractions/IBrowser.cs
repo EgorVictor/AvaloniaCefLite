@@ -15,6 +15,39 @@ namespace MyBrowser
     }
 
     /// <summary>
+    /// CEF 版本偏好
+    /// </summary>
+    public enum CefVersionPreference
+    {
+        Auto,
+        Cef109,
+        Latest
+    }
+
+    /// <summary>
+    /// CEF 兼容模式
+    /// </summary>
+    public enum CefCompatibilityMode
+    {
+        Auto,
+        Win7Compatible,
+        ModernWindows
+    }
+
+    /// <summary>
+    /// CEF 日志级别
+    /// </summary>
+    public enum CefLogLevel
+    {
+        Default,
+        Verbose,
+        Info,
+        Warning,
+        Error,
+        Disabled
+    }
+
+    /// <summary>
     /// 浏览器初始化配置
     /// </summary>
     public class BrowserConfig
@@ -22,12 +55,12 @@ namespace MyBrowser
         /// <summary>
         /// 运行时路径
         /// </summary>
-        public string RuntimePath { get; set; }
+        public string? RuntimePath { get; set; }
         
         /// <summary>
         /// 缓存路径
         /// </summary>
-        public string CachePath { get; set; }
+        public string? CachePath { get; set; }
         
         /// <summary>
         /// 无窗口渲染模式
@@ -35,14 +68,77 @@ namespace MyBrowser
         public bool WindowlessRendering { get; set; }
         
         /// <summary>
-        /// 硬件加速（默认启用）
+        /// 硬件加速（null=按OS自动，true=强制开启，false=强制关闭）
         /// </summary>
-        public bool HardwareAcceleration { get; set; } = true;
+        public bool? HardwareAcceleration { get; set; } = null;
         
         /// <summary>
         /// 初始URL（默认about:blank）
         /// </summary>
         public string InitialUrl { get; set; } = "about:blank";
+
+        /// <summary>
+        /// CEF 版本偏好
+        /// </summary>
+        public CefVersionPreference VersionPreference { get; set; } = CefVersionPreference.Auto;
+
+        /// <summary>
+        /// CEF 兼容模式
+        /// </summary>
+        public CefCompatibilityMode CompatibilityMode { get; set; } = CefCompatibilityMode.Auto;
+
+        /// <summary>
+        /// 启用远程调试
+        /// </summary>
+        public bool EnableRemoteDebugging { get; set; }
+
+        /// <summary>
+        /// 远程调试端口
+        /// </summary>
+        public int RemoteDebuggingPort { get; set; } = 0;
+
+        /// <summary>
+        /// 日志级别
+        /// </summary>
+        public CefLogLevel LogLevel { get; set; } = CefLogLevel.Warning;
+    }
+
+    /// <summary>
+    /// CEF 运行时选项
+    /// </summary>
+    public class CefRuntimeOptions
+    {
+        public string RuntimePath { get; set; } = string.Empty;
+        public string? CachePath { get; set; }
+        public bool MultiThreadedMessageLoop { get; set; } = true;
+        public bool DisableGpu { get; set; }
+        public bool DisableWebGL { get; set; }
+        public int RemoteDebuggingPort { get; set; }
+        public CefLogLevel LogSeverity { get; set; } = CefLogLevel.Warning;
+        public CefCompatibilityMode CompatibilityMode { get; set; } = CefCompatibilityMode.Auto;
+
+        public static CefRuntimeOptions FromConfig(BrowserConfig config, Version osVersion)
+        {
+            var isWin7Or8 = osVersion.Major < 10;
+            var compatibilityMode = config.CompatibilityMode == CefCompatibilityMode.Auto
+                ? (isWin7Or8 ? CefCompatibilityMode.Win7Compatible : CefCompatibilityMode.ModernWindows)
+                : config.CompatibilityMode;
+
+            var disableGpu = config.HardwareAcceleration == false
+                || (config.HardwareAcceleration == null && isWin7Or8);
+
+            return new CefRuntimeOptions
+            {
+                RuntimePath = config.RuntimePath ?? string.Empty,
+                CachePath = config.CachePath,
+                MultiThreadedMessageLoop = true,
+                DisableGpu = disableGpu,
+                DisableWebGL = isWin7Or8,
+                RemoteDebuggingPort = (config.EnableRemoteDebugging && !isWin7Or8) ? config.RemoteDebuggingPort : 0,
+                LogSeverity = isWin7Or8 ? CefLogLevel.Warning : config.LogLevel,
+                CompatibilityMode = compatibilityMode
+            };
+        }
     }
 
     /// <summary>
@@ -131,7 +227,7 @@ namespace MyBrowser
         string Version { get; }
         
         /// <summary>
-        /// 驱动类型（Legacy或Modern）
+        /// 驱动类型（如 Cef109、CefLatest）
         /// </summary>
         string DriverType { get; }
         
@@ -143,7 +239,7 @@ namespace MyBrowser
         /// <summary>
         /// 初始化工厂
         /// </summary>
-        void Initialize(BrowserConfig config);
+        void Initialize(BrowserConfig config, CefCompatibilityMode policy);
         
         /// <summary>
         /// 创建浏览器控件

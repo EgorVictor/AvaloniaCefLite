@@ -52,7 +52,7 @@ namespace MyBrowser.Interop
             return result;
         }
 
-        public static bool Initialize(IntPtr instanceHandle, string driverDir, bool multiThreadedMessageLoop = true)
+        public static bool Initialize(IntPtr instanceHandle, CefRuntimeOptions options)
         {
             lock (_initLock)
             {
@@ -63,25 +63,46 @@ namespace MyBrowser.Interop
                 }
 
                 _log.Information("[CefRuntime] Initializing CEF...");
-                _log.Information("[CefRuntime] DriverDir: {DriverDir}", driverDir);
+                _log.Information("[CefRuntime] RuntimePath: {RuntimePath}", options.RuntimePath);
+                _log.Information("[CefRuntime] DisableGpu: {DisableGpu}", options.DisableGpu);
+                _log.Information("[CefRuntime] CompatibilityMode: {CompatibilityMode}", options.CompatibilityMode);
+
+                var isWin7 = options.CompatibilityMode == CefCompatibilityMode.Win7Compatible;
+                var logSeverity = options.LogSeverity switch
+                {
+                    CefLogLevel.Verbose => cef_log_severity_t.LOGSEVERITY_VERBOSE,
+                    CefLogLevel.Info => cef_log_severity_t.LOGSEVERITY_INFO,
+                    CefLogLevel.Warning => cef_log_severity_t.LOGSEVERITY_WARNING,
+                    CefLogLevel.Error => cef_log_severity_t.LOGSEVERITY_ERROR,
+                    CefLogLevel.Disabled => cef_log_severity_t.LOGSEVERITY_DISABLE,
+                    _ => cef_log_severity_t.LOGSEVERITY_DEFAULT
+                };
 
                 var settings = new cef_settings_t
                 {
                     size = (UIntPtr)sizeof(cef_settings_t),
                     no_sandbox = 1,
-                    multi_threaded_message_loop = multiThreadedMessageLoop ? 1 : 0,
+                    multi_threaded_message_loop = options.MultiThreadedMessageLoop ? 1 : 0,
                     windowless_rendering_enabled = 0,
                     command_line_args_disabled = 0,
                     persist_session_cookies = 0,
                     persist_user_preferences = 0,
                     pack_loading_disabled = 0,
-                    remote_debugging_port = 9222,
+                    remote_debugging_port = options.RemoteDebuggingPort,
                     uncaught_exception_stack_size = 0,
                     background_color = 0xFFFFFFFF,
-                    log_severity = 0, // verbose
+                    log_severity = logSeverity,
                     cookieable_schemes_exclude_defaults = 0
                 };
 
+                if (!string.IsNullOrEmpty(options.CachePath))
+                {
+                    SetCefString(ref settings.cache_path, options.CachePath);
+                    SetCefString(ref settings.root_cache_path, options.CachePath);
+                    _log.Information("[CefRuntime] Cache path: {CachePath}", options.CachePath);
+                }
+
+                var driverDir = options.RuntimePath;
                 var resourcesDir = Path.Combine(driverDir, "resources");
                 var localesDir = Path.Combine(driverDir, "locales");
 
@@ -110,9 +131,10 @@ namespace MyBrowser.Interop
                     _log.Information("[CefRuntime] WARNING: No locales directory found");
                 }
 
-                SetCefString(ref settings.log_file, @"F:\cef_debug.log");
+                var logFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
+                SetCefString(ref settings.log_file, logFile);
 
-                _app = new CefApp();
+                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu);
                 _app.ContextInitialized += (s, e) =>
                 {
                     _log.Information("[CefRuntime] Forwarding ContextInitialized event");
@@ -128,6 +150,8 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
                 _log.Information("[CefRuntime] settings.resources_dir = {ResourcesDir}", GetString(settings.resources_dir_path));
                 _log.Information("[CefRuntime] settings.locales_dir = {LocalesDir}", GetString(settings.locales_dir_path));
+                _log.Information("[CefRuntime] settings.log_severity = {LogSeverity}", logSeverity);
+                _log.Information("[CefRuntime] settings.remote_debugging_port = {Port}", options.RemoteDebuggingPort);
 
                 int result = NativeMethods.cef_initialize(&args, &settings, appPtr, IntPtr.Zero);
                 _log.Information("[CefRuntime] cef_initialize returned: {0}", result);

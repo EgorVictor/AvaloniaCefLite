@@ -16,16 +16,12 @@ namespace MyBrowser.Demo
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // 第一步：启动调度器（在任何UI之前）
-                var factory = CefDispatcher.Boot();
-
-                // 第二步：初始化配置
-                factory.Initialize(new BrowserConfig
+                var factory = CefDispatcher.Boot(new BrowserConfig
                 {
-                    InitialUrl = "https://www.google.com"
+                    InitialUrl = "https://www.google.com",
+                    CachePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyBrowser", "Cef109", "Cache")
                 });
 
-                // 第三步：创建主窗口（CEF现在使用多线程消息循环，无需手动处理消息泵）
                 var window = new MainWindow();
                 window.SetFactory(factory);
 

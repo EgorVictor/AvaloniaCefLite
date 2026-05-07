@@ -33,7 +33,7 @@ namespace MyBrowser.Demo
 
         private static void ConfigureCefNativeSearchPath()
         {
-            var driverName = Environment.OSVersion.Version.Major < 10 ? "Legacy" : "Modern";
+            var driverName = "Cef109";
             var runtimePath = Path.Combine(AppContext.BaseDirectory, "Runtimes", driverName);
 
             if (Directory.Exists(runtimePath))

@@ -11,9 +11,9 @@ namespace MyBrowser
     /// 浏览器驱动调度器
     /// 根据操作系统版本动态选择并加载对应的浏览器驱动
     ///
-    /// 路径劫持策略：
-    /// 1. SetDllDirectory: 将原生DLL(libcef.dll)的加载重定向到子目录
-    /// 2. AssemblyResolve: 将托管DLL(CefGlue.dll)的加载重定向到子目录
+    /// 选择逻辑：
+    /// 1. 第一层：选择 CEF 版本（Cef109 / CefLatest）
+    /// 2. 第二层：选择运行策略（Win7Compatible / ModernWindows）
     /// </summary>
     public static class CefDispatcher
     {
@@ -25,35 +25,15 @@ namespace MyBrowser
         private static IBrowserFactory _factory;
         private static bool _assemblyResolveRegistered;
         
-        /// <summary>
-        /// 设置原生DLL搜索路径的Win32 API
-        /// </summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectory(string lpPathName);
 
-        /// <summary>
-        /// 当前驱动的类型
-        /// </summary>
         public static string DriverType => _factory?.DriverType ?? "Unknown";
-        
-        /// <summary>
-        /// 当前驱动的版本
-        /// </summary>
         public static string Version => _factory?.Version ?? "Unknown";
-        
-        /// <summary>
-        /// 驱动目录路径
-        /// </summary>
         public static string DriverPath { get; private set; }
-        
-        /// <summary>
-        /// 驱动名称（Legacy或Modern）
-        /// </summary>
         public static string DriverName { get; private set; }
+        public static CefCompatibilityMode CurrentPolicy { get; private set; }
 
-        /// <summary>
-        /// 关闭调度器并释放资源
-        /// </summary>
         public static void Shutdown()
         {
             _factory?.Shutdown();
@@ -63,109 +43,93 @@ namespace MyBrowser
         /// <summary>
         /// 启动调度器并返回浏览器工厂
         /// 必须在UI初始化之前调用
-        /// 
-        /// 此方法执行路径劫持：
-        /// 1. 检测操作系统版本以选择驱动（Win7用Legacy，Win10+用Modern）
-        /// 2. 调用SetDllDirectory重定向原生DLL加载
-        /// 3. 挂载AssemblyResolve重定向托管DLL加载
-        /// 4. 通过反射加载驱动DLL
         /// </summary>
         public static IBrowserFactory Boot()
         {
-            return BootInternal(Environment.OSVersion.Version);
+            return BootInternal(Environment.OSVersion.Version, null);
         }
 
         /// <summary>
-        /// 内部启动方法（供测试使用）
+        /// 带配置启动
         /// </summary>
-        internal static IBrowserFactory BootInternal(Version osVersion)
+        public static IBrowserFactory Boot(BrowserConfig config)
         {
-            // 1. 检测操作系统版本（Win7/8/10 都用 Modern + GPU 禁用，Legacy 仅用于测试）
-            // Win7 上 CEF 109 需要禁用 GPU 硬件加速（已在 CefApp.OnBeforeCommandLineProcessing 中处理）
-            bool isLegacy = false; // 保留变量但始终为 false，Legacy 仅作测试用
-            
-            DriverName = isLegacy ? "Legacy" : "Modern";
-            DriverPath = Path.Combine(AppContext.BaseDirectory, "Runtimes", DriverName);
+            return BootInternal(Environment.OSVersion.Version, config);
+        }
+
+        internal static IBrowserFactory BootInternal(Version osVersion, BrowserConfig config = null)
+        {
+            config = config ?? new BrowserConfig();
+
+            var selection = CefRuntimeSelector.Select(osVersion, config);
+            DriverName = selection.DriverName;
+            DriverPath = selection.RuntimePath;
+            CurrentPolicy = selection.Policy;
 
             _log.Information("===========================================");
             _log.Information("[CefDispatcher] 浏览器驱动调度器");
             _log.Information("===========================================");
             _log.Information("[CefDispatcher] 操作系统版本: {OsVersion}", osVersion);
-            _log.Information("[CefDispatcher] 操作系统主版本号: {OsVersionMajor}", osVersion.Major);
-            _log.Information("[CefDispatcher] 选择的驱动: {DriverName}", DriverName);
+            _log.Information("[CefDispatcher] CEF 版本: {DriverName}", DriverName);
+            _log.Information("[CefDispatcher] 兼容策略: {Policy}", CurrentPolicy);
             _log.Information("[CefDispatcher] 驱动路径: {DriverPath}", DriverPath);
 
-            // 2. SetDllDirectory - 原生DLL搜索路径劫持
-            // 这对libcef.dll的加载至关重要
-            _log.Information("[CefDispatcher] 步骤1: SetDllDirectory()");
             if (!string.IsNullOrEmpty(DriverPath) && Directory.Exists(DriverPath))
             {
                 bool result = SetDllDirectory(DriverPath);
-                _log.Information("[CefDispatcher]   SetDllDirectory({DriverPath}) = {Result}", DriverPath, result);
+                _log.Information("[CefDispatcher] SetDllDirectory({DriverPath}) = {Result}", DriverPath, result);
                 if (!result)
                 {
                     int error = Marshal.GetLastWin32Error();
-                    _log.Information("[CefDispatcher]   警告: SetDllDirectory失败, error={Error}", error);
+                    _log.Information("[CefDispatcher] 警告: SetDllDirectory失败, error={Error}", error);
                 }
             }
             else
             {
-                _log.Information("[CefDispatcher]   警告: 驱动路径不存在: {DriverPath}", DriverPath);
-                _log.Information("[CefDispatcher]   将使用备用路径发现...");
+                _log.Information("[CefDispatcher] 警告: 驱动路径不存在: {DriverPath}", DriverPath);
             }
 
-            // 3. 挂载AssemblyResolve - 托管DLL搜索路径劫持
-            // 这对CefGlue.dll的加载至关重要
             if (!_assemblyResolveRegistered)
             {
-                _log.Information("[CefDispatcher] 步骤2: 挂载AssemblyResolve");
+                _log.Information("[CefDispatcher] 挂载AssemblyResolve");
                 AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
                 _assemblyResolveRegistered = true;
-                _log.Information("[CefDispatcher]   AssemblyResolve处理器已注册");
-            }
-            else
-            {
-                _log.Information("[CefDispatcher] 步骤2: AssemblyResolve已注册，跳过");
             }
 
-            // 4. 查找驱动DLL路径
-            _log.Information("[CefDispatcher] 步骤3: 定位驱动DLL");
+            _log.Information("[CefDispatcher] 定位驱动DLL");
             string driverDllName = $"MyBrowser.Driver.{DriverName}.dll";
             string driverDllPath = FindDriverDll(DriverPath, driverDllName);
 
-            _log.Information("[CefDispatcher]   驱动DLL: {DriverDllPath}", driverDllPath);
+            _log.Information("[CefDispatcher] 驱动DLL: {DriverDllPath}", driverDllPath);
 
-            // 5. 通过反射加载驱动程序集
-            _log.Information("[CefDispatcher] 步骤4: 加载驱动程序集");
+            _log.Information("[CefDispatcher] 加载驱动程序集");
             var assembly = Assembly.LoadFrom(driverDllPath);
-            _log.Information("[CefDispatcher]   程序集已加载: {AssemblyFullName}", assembly.FullName);
+            _log.Information("[CefDispatcher] 程序集已加载: {AssemblyFullName}", assembly.FullName);
 
-            // 6. 查找IBrowserFactory实现
-            _log.Information("[CefDispatcher] 步骤5: 查找IBrowserFactory");
+            _log.Information("[CefDispatcher] 查找IBrowserFactory");
             Type factoryType = FindFactoryType(assembly);
 
-            _log.Information("[CefDispatcher]   工厂类型: {FactoryTypeFullName}", factoryType.FullName);
-            _log.Information("[CefDispatcher] 步骤6: 创建工厂实例");
+            _log.Information("[CefDispatcher] 工厂类型: {FactoryTypeFullName}", factoryType.FullName);
+            _log.Information("[CefDispatcher] 创建工厂实例");
             _factory = (IBrowserFactory)Activator.CreateInstance(factoryType);
-            _log.Information("[CefDispatcher]   工厂已创建: {FactoryTypeName}", _factory.GetType().Name);
+            _log.Information("[CefDispatcher] 工厂已创建: {FactoryTypeName}", _factory.GetType().Name);
+
+            config.RuntimePath = DriverPath;
+            _factory.Initialize(config, CurrentPolicy);
+
             _log.Information("===========================================");
 
             return _factory;
         }
 
-        /// <summary>
-        /// 查找驱动DLL，检查多个可能的位置
-        /// </summary>
         private static string FindDriverDll(string primaryPath, string dllName)
         {
-            // 先尝试主路径
             string primaryDllPath = Path.Combine(primaryPath, dllName);
             if (File.Exists(primaryDllPath))
             {
                 return primaryDllPath;
             }
 
-            // 尝试开发时的备用路径
             string[] fallbackPaths = new[]
             {
                 Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", DriverName)),
@@ -176,11 +140,11 @@ namespace MyBrowser
             foreach (var fallback in fallbackPaths)
             {
                 var testPath = Path.Combine(fallback, dllName);
-                _log.Information("[CefDispatcher]   尝试: {TestPath}", testPath);
+                _log.Information("[CefDispatcher] 尝试: {TestPath}", testPath);
                 if (File.Exists(testPath))
                 {
                     DriverPath = fallback;
-                    _log.Information("[CefDispatcher]   已找到! 更新DriverPath为: {FallbackPath}", fallback);
+                    _log.Information("[CefDispatcher] 已找到! 更新DriverPath为: {FallbackPath}", fallback);
                     return testPath;
                 }
             }
@@ -192,9 +156,6 @@ namespace MyBrowser
                 $"  备用路径: {string.Join("\n  ", fallbackPaths)}");
         }
 
-        /// <summary>
-        /// 在程序集中查找IBrowserFactory实现
-        /// </summary>
         private static Type FindFactoryType(Assembly assembly)
         {
             Type factoryType = null;
@@ -217,10 +178,6 @@ namespace MyBrowser
             return factoryType;
         }
 
-        /// <summary>
-        /// 程序集解析处理器 - 将托管DLL加载重定向到驱动目录
-        /// 当.NET无法在默认位置找到程序集时调用此方法
-        /// </summary>
         private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs e)
         {
             var assemblyName = new AssemblyName(e.Name);
@@ -228,16 +185,63 @@ namespace MyBrowser
             string dllPath = Path.Combine(DriverPath, dllName);
 
             _log.Information("[AssemblyResolve] 正在解析: {AssemblyName}", assemblyName.Name);
-            _log.Information("[AssemblyResolve]   在以下路径查找: {DriverPath}", DriverPath);
+            _log.Information("[AssemblyResolve] 在以下路径查找: {DriverPath}", DriverPath);
 
             if (File.Exists(dllPath))
             {
-                _log.Information("[AssemblyResolve]   已找到: {DllPath}", dllPath);
+                _log.Information("[AssemblyResolve] 已找到: {DllPath}", dllPath);
                 return Assembly.LoadFrom(dllPath);
             }
 
-            _log.Information("[AssemblyResolve]   未找到");
+            _log.Information("[AssemblyResolve] 未找到");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// CEF 运行时选择器
+    /// 根据 OS 版本和配置选择合适的 CEF 版本和运行策略
+    /// </summary>
+    public sealed class CefRuntimeSelection
+    {
+        public string DriverName { get; init; }
+        public string RuntimePath { get; init; }
+        public CefCompatibilityMode Policy { get; init; }
+    }
+
+    public static class CefRuntimeSelector
+    {
+        public static CefRuntimeSelection Select(Version osVersion, BrowserConfig config)
+        {
+            var isWin7Or8 = osVersion.Major < 10;
+
+            var policy = config.CompatibilityMode == CefCompatibilityMode.Auto
+                ? (isWin7Or8 ? CefCompatibilityMode.Win7Compatible : CefCompatibilityMode.ModernWindows)
+                : config.CompatibilityMode;
+
+            string driverName;
+            if (config.VersionPreference == CefVersionPreference.Cef109)
+            {
+                driverName = "Cef109";
+            }
+            else if (config.VersionPreference == CefVersionPreference.Latest)
+            {
+                var latestPath = Path.Combine(AppContext.BaseDirectory, "Runtimes", "CefLatest");
+                driverName = Directory.Exists(latestPath) ? "CefLatest" : "Cef109";
+            }
+            else
+            {
+                driverName = "Cef109";
+            }
+
+            var runtimePath = Path.Combine(AppContext.BaseDirectory, "Runtimes", driverName);
+
+            return new CefRuntimeSelection
+            {
+                DriverName = driverName,
+                RuntimePath = runtimePath,
+                Policy = policy
+            };
         }
     }
 }

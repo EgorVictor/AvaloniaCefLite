@@ -16,23 +16,19 @@
     <ItemGroup>
         <ProjectReference Include="..\MyBrowser.Dispatcher\MyBrowser.Dispatcher.csproj" />
         <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
-        <ProjectReference Include="..\MyBrowser.Driver.Modern\MyBrowser.Driver.Modern.csproj" />
+        <ProjectReference Include="..\MyBrowser.Driver.Cef109\MyBrowser.Driver.Cef109.csproj" />
     </ItemGroup>
 
-    <!-- 发布时自动复制 CEF 资源文件到 Legacy 和 Modern 目录 -->
+    <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
     <Target Name="CopyCefResources" BeforeTargets="Publish">
         <PropertyGroup>
-            <CefSourceDir>$(MSBuildThisFileDirectory)bin\Debug\net8.0\runtimes\Modern\</CefSourceDir>
+            <CefSourceDir>$(MSBuildThisFileDirectory)bin\Debug\net8.0\runtimes\Cef109\</CefSourceDir>
             <CefPublishDir>$(PublishDir)</CefPublishDir>
         </PropertyGroup>
         <ItemGroup>
-            <CefModernFiles Include="$(CefSourceDir)**\*" />
-            <CefLegacyFiles Include="$(CefSourceDir)**\*" />
+            <CefFiles Include="$(CefSourceDir)**\*" />
         </ItemGroup>
-        <!-- 复制到 Modern 目录 -->
-        <Copy SourceFiles="@(CefModernFiles)" DestinationFiles="@(CefModernFiles->'$(CefPublishDir)runtimes\Modern\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <!-- 复制到 Legacy 目录 -->
-        <Copy SourceFiles="@(CefLegacyFiles)" DestinationFiles="@(CefLegacyFiles->'$(CefPublishDir)runtimes\Legacy\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <Message Text="CEF resources copied to: runtimes\Modern\ and runtimes\Legacy\" Importance="high" />
+        <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+        <Message Text="CEF resources copied to: runtimes\Cef109\" Importance="high" />
     </Target>
 </Project>
