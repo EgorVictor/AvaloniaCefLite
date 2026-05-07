@@ -35,6 +35,8 @@ namespace MyBrowser.Interop
         private IntPtr _browserProcessHandlerPtr;
 
         private bool _disposed;
+        private readonly bool _isWin7Or8;
+        private readonly bool _hardwareAcceleration;
 
         // Delegate fields - MUST be kept alive to prevent GC
         private cef_base_add_ref _appAddRef;
@@ -52,8 +54,12 @@ namespace MyBrowser.Interop
         public event EventHandler? ContextInitialized;
         public IntPtr Handle => _appPtr;
 
-        public CefApp()
+        public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true)
         {
+            _isWin7Or8 = isWin7Or8;
+            _hardwareAcceleration = hardwareAcceleration;
+            _log.Information("[CefApp] Created: isWin7Or8={IsWin7Or8}, hardwareAcceleration={HardwareAcceleration}", _isWin7Or8, _hardwareAcceleration);
+
             _selfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
             _bphSelfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
 
@@ -114,8 +120,6 @@ namespace MyBrowser.Interop
 
             _appPtr = Marshal.AllocHGlobal(sizeof(cef_app_t));
             Marshal.StructureToPtr(_app, _appPtr, false);
-
-            _log.Information("[CefApp] Created, app={App}, bph={BPH}", _appPtr, _browserProcessHandlerPtr);
         }
 
         // ===== cef_app_t ref-count (separate from BPH) =====
@@ -155,18 +159,27 @@ namespace MyBrowser.Interop
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
             var process = GetCefString(processType);
-            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process}", process);
-            
-            // Win7 compatibility: completely disable GPU to prevent render process crashes
-            CommandLineAppendSwitch(commandLine, "disable-gpu");
-            CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
-            CommandLineAppendSwitch(commandLine, "disable-gpu-process");
-            CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
-            
-            // SSL compatibility for Win7
-            CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
-        }
+            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel}", process, _isWin7Or8, _hardwareAcceleration);
 
+            // Only apply flags in the main browser process (processType is empty)
+            if (!string.IsNullOrEmpty(process)) return;
+
+            if (_isWin7Or8 || !_hardwareAcceleration)
+            {
+                _log.Information("[CefApp] Applying Win7/no-GPU compatibility flags");
+                CommandLineAppendSwitch(commandLine, "disable-gpu");
+                CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+                CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
+                CommandLineAppendSwitch(commandLine, "disable-accelerated-2d-canvas");
+                CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                CommandLineAppendSwitch(commandLine, "disable-webgl");
+                CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
+            }
+            else
+            {
+                _log.Information("[CefApp] Win10+ with GPU acceleration enabled");
+            }
+        }
 
         private static unsafe string GetCefString(cef_string_t* cefStr)
         {
@@ -177,12 +190,9 @@ namespace MyBrowser.Interop
         private static unsafe void CommandLineAppendSwitch(cef_command_line_t* commandLine, string switchName)
         {
             if (commandLine == null) return;
-            
             var funcPtr = commandLine->append_switch;
             if (funcPtr == IntPtr.Zero) return;
-
             var appendSwitch = Marshal.GetDelegateForFunctionPointer<cef_command_line_append_switch>(funcPtr);
-            
             var cefStr = stackalloc cef_string_t[1];
             fixed (char* chars = switchName)
             {
@@ -196,12 +206,9 @@ namespace MyBrowser.Interop
         private static unsafe void CommandLineAppendSwitchWithValue(cef_command_line_t* commandLine, string switchName, string value)
         {
             if (commandLine == null) return;
-            
             var funcPtr = commandLine->append_switch_with_value;
             if (funcPtr == IntPtr.Zero) return;
-
             var appendSwitchWithValue = Marshal.GetDelegateForFunctionPointer<cef_command_line_append_switch_with_value>(funcPtr);
-            
             var cefName = stackalloc cef_string_t[1];
             var cefValue = stackalloc cef_string_t[1];
             fixed (char* nameChars = switchName)

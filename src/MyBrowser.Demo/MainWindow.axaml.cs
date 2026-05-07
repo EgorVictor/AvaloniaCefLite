@@ -221,6 +221,7 @@ namespace MyBrowser.Demo
         private IntPtr _containerHwnd;
         private bool _browserCreated;
         private bool _disposed;
+        private Rect _lastBounds;
 
         public BrowserView(IBrowserControl browser, Window parentWindow)
         {
@@ -336,6 +337,13 @@ namespace MyBrowser.Demo
             var y = (int)Math.Round(origin.Value.Y * scale);
             var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
             var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
+
+            var newBounds = new Rect(x, y, width, height);
+            if (newBounds.Equals(_lastBounds))
+            {
+                return;
+            }
+            _lastBounds = newBounds;
 
             _log.Information("[BrowserView] UpdateNativeBounds: pos={X},{Y} size={W}x{H} scale={Scale} bounds={BoundsW}x{BoundsH}",
                 x, y, width, height, scale, Bounds.Width, Bounds.Height);

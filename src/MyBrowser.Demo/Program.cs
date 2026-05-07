@@ -12,7 +12,6 @@ namespace MyBrowser.Demo
         [STAThread]
         static void Main(string[] args)
         {
-            ResetLogFile();
             ConfigureCefNativeSearchPath();
 
             var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
@@ -21,6 +20,8 @@ namespace MyBrowser.Demo
                 Environment.Exit(cefExitCode);
                 return;
             }
+
+            ResetLogFile();
 
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
