@@ -18,7 +18,7 @@ namespace MyBrowser.Demo
             {
                 var factory = CefDispatcher.Boot(new BrowserConfig
                 {
-                    InitialUrl = "https://www.google.com",
+                    InitialUrl = "about:blank",
                     CachePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyBrowser", "Cef109", "Cache")
                 });
 

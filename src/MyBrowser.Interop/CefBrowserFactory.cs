@@ -454,7 +454,12 @@ namespace MyBrowser.Interop
 
             // Resize browser window to fill the parent container
             SetWindowPos(browserHwnd, IntPtr.Zero, rc.Left, rc.Top,
-                rc.Right - rc.Left, rc.Bottom - rc.Top, SWP_NOZORDER | SWP_NOACTIVATE);
+                rc.Right - rc.Left, rc.Bottom - rc.Top, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
+            // Force show and invalidate
+            ShowWindow(browserHwnd, SW_SHOW);
+            InvalidateRect(browserHwnd, IntPtr.Zero, true);
+            UpdateWindow(browserHwnd);
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -463,12 +468,26 @@ namespace MyBrowser.Interop
             public int Left, Top, Right, Bottom;
         }
 
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_SHOWWINDOW = 0x0040;
+        private const int SW_SHOW = 5;
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
             int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool UpdateWindow(IntPtr hWnd);
 
         private IntPtr GetBrowserHwnd()
         {
@@ -487,9 +506,6 @@ namespace MyBrowser.Interop
             var getWindowHandle = Marshal.GetDelegateForFunctionPointer<cef_browser_host_get_window_handle>(ptr);
             return getWindowHandle(_browserHostHandle);
         }
-
-        private const uint SWP_NOZORDER = 0x0004;
-        private const uint SWP_NOACTIVATE = 0x0010;
 
         public void Dispose()
         {

@@ -68,7 +68,7 @@ namespace MyBrowser.Demo
                 _browser.PopupRequested += (s, url) => Avalonia.Threading.Dispatcher.UIThread.Post(() => CreateTabWithUrl(url));
 
                 // 加载初始URL
-                _browser.LoadUrl("https://www.baidu.com");
+                _browser.LoadUrl("about:blank");
             }
 
             // 创建标签页
@@ -236,7 +236,10 @@ namespace MyBrowser.Demo
                 return;
             }
 
-            _browser.BrowserInitialized += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateNativeBounds());
+            _browser.BrowserInitialized += (s, e) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                ForceRefresh();
+            });
 
             Loaded += OnLoaded;
         }
@@ -318,7 +321,36 @@ namespace MyBrowser.Demo
             return finalSize;
         }
 
-        private void UpdateNativeBounds()
+        private void TryCreateBrowser()
+        {
+            if (_browserCreated || _browser == null || _containerHwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            _log.Information("[BrowserView] 设置浏览器父 HWND: {ContainerHwnd}", _containerHwnd);
+            _browser.SetWindowHandle(_containerHwnd);
+            _browserCreated = true;
+        }
+
+        public void LoadUrl(string url) => _browser?.LoadUrl(url);
+        public void GoBack() => _browser?.GoBack();
+        public void GoForward() => _browser?.GoForward();
+        public void Reload() => _browser?.Reload();
+        public void Stop() => _browser?.Stop();
+
+        public void ForceRefresh()
+        {
+            _lastBounds = default(Rect);
+            UpdateNativeBounds(force: true);
+            if (_browser != null)
+            {
+                (_browser as IBrowserControl)?.NotifyResized();
+            }
+            _log.Information("[BrowserView] ForceRefresh called");
+        }
+
+        private void UpdateNativeBounds(bool force = false)
         {
             if (_containerHwnd == IntPtr.Zero)
             {
@@ -339,15 +371,20 @@ namespace MyBrowser.Demo
             var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
 
             var newBounds = new Rect(x, y, width, height);
-            if (newBounds.Equals(_lastBounds))
+            if (!force && newBounds.Equals(_lastBounds))
             {
                 return;
             }
             _lastBounds = newBounds;
 
-            _log.Information("[BrowserView] UpdateNativeBounds: pos={X},{Y} size={W}x{H} scale={Scale} bounds={BoundsW}x{BoundsH}",
-                x, y, width, height, scale, Bounds.Width, Bounds.Height);
+            _log.Information("[BrowserView] UpdateNativeBounds: pos={X},{Y} size={W}x{H} scale={Scale} bounds={BoundsW}x{BoundsH} force={Force}",
+                x, y, width, height, scale, Bounds.Width, Bounds.Height, force);
 
+            // 先显示容器窗口
+            ShowWindow(_containerHwnd, SW_SHOW);
+            InvalidateRect(_containerHwnd, IntPtr.Zero, true);
+
+            // 设置窗口位置
             SetWindowPos(
                 _containerHwnd,
                 IntPtr.Zero,
@@ -355,7 +392,7 @@ namespace MyBrowser.Demo
                 y,
                 width,
                 height,
-                SWP_NOZORDER | SWP_NOACTIVATE);
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
             // 通知浏览器大小已改变（仅在浏览器已创建时）
             if (_browser != null)
@@ -364,30 +401,16 @@ namespace MyBrowser.Demo
             }
         }
 
-        private void TryCreateBrowser()
-        {
-            if (_browserCreated || _browser == null || _containerHwnd == IntPtr.Zero)
-            {
-                return;
-            }
-
-            _log.Information("[BrowserView] 设置浏览器父 HWND: {ContainerHwnd}", _containerHwnd);
-            _browser.SetWindowHandle(_containerHwnd);
-            _browserCreated = true;
-        }
-
-        public void LoadUrl(string url) => _browser?.LoadUrl(url);
-        public void GoBack() => _browser?.GoBack();
-        public void GoForward() => _browser?.GoForward();
-        public void Reload() => _browser?.Reload();
-        public void Stop() => _browser?.Stop();
-
         private const int WS_CHILD = 0x40000000;
         private const int WS_VISIBLE = 0x10000000;
         private const int WS_CLIPCHILDREN = 0x02000000;
         private const int WS_CLIPSIBLINGS = 0x04000000;
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_SHOWWINDOW = 0x0040;
+        private const int SW_SHOW = 5;
+        private const int SWP_NOSIZE = 0x0001;
+        private const int SWP_NOMOVE = 0x0002;
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern IntPtr CreateWindowEx(
@@ -416,5 +439,14 @@ namespace MyBrowser.Demo
             int cx,
             int cy,
             uint uFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool UpdateWindow(IntPtr hWnd);
     }
 }

@@ -169,12 +169,14 @@ namespace MyBrowser.Interop
             if (_isWin7Or8 || !_hardwareAcceleration)
             {
                 _log.Information("[CefApp] Applying Win7/no-GPU compatibility flags");
+                
+                // Win7 下使用 ANGLE/D3D9 软件渲染，比完全禁用 GPU 更稳定
+                CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
+                CommandLineAppendSwitch(commandLine, "disable-webgl");
+                CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
                 CommandLineAppendSwitch(commandLine, "disable-gpu");
                 CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
                 CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
-                CommandLineAppendSwitch(commandLine, "disable-accelerated-2d-canvas");
-                CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                CommandLineAppendSwitch(commandLine, "disable-webgl");
                 
                 if (_ignoreCertificateErrors)
                 {

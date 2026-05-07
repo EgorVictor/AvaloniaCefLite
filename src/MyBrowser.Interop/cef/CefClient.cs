@@ -480,18 +480,7 @@ namespace MyBrowser.Interop.cef
 
         private void OnLoadStart(IntPtr self, IntPtr browser, IntPtr frame, int transitionType)
         {
-            if (frame != IntPtr.Zero)
-            {
-                var urlPtr = Marshal.ReadIntPtr(frame, 16);
-                if (urlPtr != IntPtr.Zero)
-                {
-                    var url = CefDisplayHandler.GetCefString(urlPtr);
-                    if (!string.IsNullOrEmpty(url))
-                    {
-                        _parent.OnAddressChanged(url);
-                    }
-                }
-            }
+            _log.Information("[CefLoadHandler] OnLoadStart, transitionType: {Type}", transitionType);
             _parent.OnLoadStart();
         }
 
