@@ -1,50 +1,74 @@
+#nullable enable
 namespace MyBrowser.Demo
 {
     using System;
     using Avalonia;
     using Avalonia.Controls;
-    using Avalonia.Native;
     using Avalonia.Platform;
     using System.Runtime.InteropServices;
-    using System.Reflection;
 
     public class CefNativeHost : NativeControlHost
     {
-        private IntPtr _browserHwnd;
+        private IntPtr _hostHwnd;
         private IBrowserControl? _browser;
-        private bool _browserCreated;
+        private bool _browserAttached;
+        private Rect _lastBounds;
+
+        public IBrowserControl? Browser
+        {
+            get => _browser;
+            set
+            {
+                _browser = value;
+                if (_browser != null && _hostHwnd != IntPtr.Zero && !_browserAttached)
+                {
+                    _browser.SetWindowHandle(_hostHwnd);
+                    _browserAttached = true;
+                }
+            }
+        }
 
         public void AttachBrowser(IBrowserControl browser)
         {
-            _browser = browser;
+            Browser = browser;
             if (_browser != null)
             {
                 _browser.BrowserInitialized += (s, e) =>
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        _browserCreated = true;
-                        if (_browserHwnd != IntPtr.Zero)
+                        if (_hostHwnd != IntPtr.Zero && _browser != null && !_browserAttached)
                         {
-                            _browser.SetWindowHandle(_browserHwnd);
+                            _browser.SetWindowHandle(_hostHwnd);
+                            _browserAttached = true;
+                            _browser.NotifyResized();
                         }
                     });
                 };
             }
         }
 
+        public void LoadUrl(string url) => _browser?.LoadUrl(url);
+        public void GoBack() => _browser?.GoBack();
+        public void GoForward() => _browser?.GoForward();
+        public void Reload() => _browser?.Reload();
+        public void Stop() => _browser?.Stop();
+
+        public void ForceRefresh()
+        {
+            _lastBounds = default;
+            UpdateNativeBounds(force: true);
+        }
+
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
-            var hwnd = CreateHostWindow(parent.Handle);
-            if (hwnd != IntPtr.Zero)
+            _hostHwnd = CreateHostWindow(parent.Handle);
+            if (_hostHwnd != IntPtr.Zero && _browser != null && !_browserAttached)
             {
-                _browserHwnd = hwnd;
-                if (_browser != null && _browserCreated)
-                {
-                    _browser.SetWindowHandle(hwnd);
-                }
+                _browser.SetWindowHandle(_hostHwnd);
+                _browserAttached = true;
             }
-            return new PlatformHandle(hwnd, "HWND");
+            return new PlatformHandle(_hostHwnd, "HWND");
         }
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
@@ -55,12 +79,46 @@ namespace MyBrowser.Demo
                 _browser = null;
             }
 
-            if (_browserHwnd != IntPtr.Zero)
+            if (_hostHwnd != IntPtr.Zero)
             {
-                DestroyWindow(_browserHwnd);
-                _browserHwnd = IntPtr.Zero;
+                DestroyWindow(_hostHwnd);
+                _hostHwnd = IntPtr.Zero;
             }
-            _browserCreated = false;
+            _browserAttached = false;
+        }
+
+        protected override void OnSizeChanged(SizeChangedEventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateNativeBounds();
+        }
+
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            UpdateNativeBounds();
+            return finalSize;
+        }
+
+        private void UpdateNativeBounds(bool force = false)
+        {
+            if (_hostHwnd == IntPtr.Zero) return;
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            var origin = this.TranslatePoint(new Point(0, 0), topLevel);
+            if (topLevel == null || origin == null) return;
+
+            var scale = topLevel.RenderScaling;
+            var x = (int)Math.Round(origin.Value.X * scale);
+            var y = (int)Math.Round(origin.Value.Y * scale);
+            var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
+            var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
+
+            var newBounds = new Rect(x, y, width, height);
+            if (!force && newBounds == _lastBounds) return;
+            _lastBounds = newBounds;
+
+            SetWindowPos(_hostHwnd, IntPtr.Zero, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            _browser?.NotifyResized();
         }
 
         private IntPtr CreateHostWindow(IntPtr parentHwnd)
@@ -135,7 +193,7 @@ namespace MyBrowser.Demo
                     {
                         var width = (short)(lParam.ToInt32() & 0xFFFF);
                         var height = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
-                        SetWindowPos(hWnd, IntPtr.Zero, 0, 0, width, height, 0x0040);
+                        SetWindowPos(hWnd, IntPtr.Zero, 0, 0, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
                     }
                     return IntPtr.Zero;
                 case WM_SETFOCUS:
@@ -228,6 +286,7 @@ namespace MyBrowser.Demo
             public RECT rcPaint;
             public bool fRestore;
             public bool fIncUpdate;
+            public bool fReserved;
         }
 
         [StructLayout(LayoutKind.Sequential)]
