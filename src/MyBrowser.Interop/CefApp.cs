@@ -154,12 +154,24 @@ namespace MyBrowser.Interop
 
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
-            _log.Information("[CefApp] OnBeforeCommandLineProcessing - Disabling GPU for Win7 compatibility");
+            var process = GetCefString(processType);
+            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process}", process);
             
+            // Win7 compatibility: completely disable GPU to prevent render process crashes
             CommandLineAppendSwitch(commandLine, "disable-gpu");
             CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
             CommandLineAppendSwitch(commandLine, "disable-gpu-process");
-            CommandLineAppendSwitch(commandLine, "single-process");
+            CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
+            
+            // SSL compatibility for Win7
+            CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
+        }
+
+
+        private static unsafe string GetCefString(cef_string_t* cefStr)
+        {
+            if (cefStr == null || cefStr->str == null || cefStr->length == UIntPtr.Zero) return "";
+            return Marshal.PtrToStringUni((IntPtr)cefStr->str, (int)cefStr->length) ?? "";
         }
 
         private static unsafe void CommandLineAppendSwitch(cef_command_line_t* commandLine, string switchName)
@@ -178,6 +190,30 @@ namespace MyBrowser.Interop
                 cefStr->length = (UIntPtr)switchName.Length;
                 cefStr->dtor = IntPtr.Zero;
                 appendSwitch((IntPtr)commandLine, cefStr);
+            }
+        }
+
+        private static unsafe void CommandLineAppendSwitchWithValue(cef_command_line_t* commandLine, string switchName, string value)
+        {
+            if (commandLine == null) return;
+            
+            var funcPtr = commandLine->append_switch_with_value;
+            if (funcPtr == IntPtr.Zero) return;
+
+            var appendSwitchWithValue = Marshal.GetDelegateForFunctionPointer<cef_command_line_append_switch_with_value>(funcPtr);
+            
+            var cefName = stackalloc cef_string_t[1];
+            var cefValue = stackalloc cef_string_t[1];
+            fixed (char* nameChars = switchName)
+            fixed (char* valueChars = value)
+            {
+                cefName->str = nameChars;
+                cefName->length = (UIntPtr)switchName.Length;
+                cefName->dtor = IntPtr.Zero;
+                cefValue->str = valueChars;
+                cefValue->length = (UIntPtr)value.Length;
+                cefValue->dtor = IntPtr.Zero;
+                appendSwitchWithValue((IntPtr)commandLine, cefName, cefValue);
             }
         }
 
