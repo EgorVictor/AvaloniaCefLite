@@ -54,13 +54,16 @@ namespace MyBrowser.Driver.Cef109
             _log.Information("[Cef109Factory] 初始URL: {InitialUrl}", _config.InitialUrl);
 
             SetDllDirectory(DriverDirectory);
+            _log.Information("[Cef109Factory] SetDllDirectory done");
 
             var options = CefRuntimeOptions.FromConfig(_config, Environment.OSVersion.Version);
             options.RuntimePath = DriverDirectory;
             options.CompatibilityMode = _policy;
             options.IgnoreCertificateErrors = _config.IgnoreCertificateErrors;
 
+            _log.Information("[Cef109Factory] >>> Calling CefRuntime.Initialize <<<");
             CefRuntime.Initialize(GetModuleHandle(null), options);
+            _log.Information("[Cef109Factory] CefRuntime.Initialize returned");
 
             _browserFactory = new CefBrowserFactory { DisableWebGL = options.DisableWebGL };
             _initialized = true;

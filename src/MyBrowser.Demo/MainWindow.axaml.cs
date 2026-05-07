@@ -33,25 +33,6 @@ namespace MyBrowser.Demo
         public MainWindow()
         {
             InitializeComponent();
-
-            if (Environment.OSVersion.Version.Major < 10)
-            {
-                var cefTimer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(10)
-                };
-                cefTimer.Tick += (_, _) =>
-                {
-                    try
-                    {
-                        CefRuntime.DoMessageLoopWork();
-                    }
-                    catch
-                    {
-                    }
-                };
-                cefTimer.Start();
-            }
         }
 
         /// <summary>

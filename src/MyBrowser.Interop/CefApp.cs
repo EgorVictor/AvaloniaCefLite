@@ -16,7 +16,7 @@ namespace MyBrowser.Interop
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         // App ref-count (for cef_app_t)
@@ -50,9 +50,11 @@ namespace MyBrowser.Interop
         private cef_base_has_at_least_one_ref _bphHasAtLeastOneRef;
         private cef_app_get_browser_process_handler _getBrowserProcessHandler;
         private cef_browser_process_handler_on_context_initialized _onContextInitialized;
+        private cef_browser_process_handler_on_schedule_message_pump_work _onScheduleMessagePumpWork;
         private cef_app_on_before_command_line_processing _onBeforeCommandLineProcessing;
 
         public event EventHandler? ContextInitialized;
+        public event EventHandler<long>? ScheduleMessagePumpWork;
         public IntPtr Handle => _appPtr;
 
         public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true, bool ignoreCertificateErrors = false)
@@ -79,6 +81,7 @@ namespace MyBrowser.Interop
 
             _getBrowserProcessHandler = GetBrowserProcessHandler;
             _onContextInitialized = OnContextInitialized;
+            _onScheduleMessagePumpWork = OnScheduleMessagePumpWork;
             _onBeforeCommandLineProcessing = OnBeforeCommandLineProcessing;
 
             // --- cef_browser_process_handler_t ---
@@ -95,7 +98,7 @@ namespace MyBrowser.Interop
                 on_register_custom_preferences = IntPtr.Zero,
                 on_context_initialized = Marshal.GetFunctionPointerForDelegate(_onContextInitialized),
                 on_before_child_process_launch = IntPtr.Zero,
-                on_schedule_message_pump_work = IntPtr.Zero,
+                on_schedule_message_pump_work = Marshal.GetFunctionPointerForDelegate(_onScheduleMessagePumpWork),
                 get_default_client = IntPtr.Zero
             };
 
@@ -158,6 +161,11 @@ namespace MyBrowser.Interop
             ContextInitialized?.Invoke(this, EventArgs.Empty);
         }
 
+        private void OnScheduleMessagePumpWork(IntPtr self, long delay)
+        {
+            ScheduleMessagePumpWork?.Invoke(this, delay);
+        }
+
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
             var process = GetCefString(processType);
@@ -169,9 +177,8 @@ namespace MyBrowser.Interop
             if (_isWin7Or8 || !_hardwareAcceleration)
             {
                 _log.Information("[CefApp] Applying Win7/no-GPU compatibility flags");
-                
-                // Win7 下使用 ANGLE/D3D9 软件渲染，比完全禁用 GPU 更稳定
-                CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
+
+                CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
                 CommandLineAppendSwitch(commandLine, "disable-webgl");
                 CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
                 CommandLineAppendSwitch(commandLine, "disable-gpu");
@@ -274,4 +281,5 @@ namespace MyBrowser.Interop
     public delegate int cef_base_has_at_least_one_ref(IntPtr self);
     public delegate IntPtr cef_app_get_browser_process_handler(IntPtr self);
     public delegate void cef_browser_process_handler_on_context_initialized(IntPtr self);
+    public delegate void cef_browser_process_handler_on_schedule_message_pump_work(IntPtr self, long delay);
 }

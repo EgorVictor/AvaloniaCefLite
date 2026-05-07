@@ -12,16 +12,27 @@ namespace MyBrowser.Demo
         [STAThread]
         static void Main(string[] args)
         {
-            ConfigureCefNativeSearchPath();
+            WriteEarlyLog("[Program] === Application starting ===");
+            WriteEarlyLog("[Program] OS Version: {0}", Environment.OSVersion.VersionString);
+            WriteEarlyLog("[Program] CLR Version: {0}", Environment.Version);
+            WriteEarlyLog("[Program] Base Directory: {0}", AppContext.BaseDirectory);
 
+            ConfigureCefNativeSearchPath();
+            WriteEarlyLog("[Program] After ConfigureCefNativeSearchPath");
+
+            WriteEarlyLog("[Program] Calling CefRuntime.ExecuteMainProcess...");
             var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
+            WriteEarlyLog("[Program] CefRuntime.ExecuteMainProcess returned: {0}", cefExitCode);
+
             if (cefExitCode >= 0)
             {
+                WriteEarlyLog("[Program] Exiting with code: {0}", cefExitCode);
                 Environment.Exit(cefExitCode);
                 return;
             }
 
             ResetLogFile();
+            WriteEarlyLog("[Program] Log file reset, starting Avalonia...");
 
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
@@ -59,6 +70,20 @@ namespace MyBrowser.Demo
                     File.Delete(logFile);
                     File.Delete(debugFile);
                 }
+            }
+            catch
+            {
+            }
+        }
+
+        private static void WriteEarlyLog(string format, params object[] args)
+        {
+            var earlyLog = Path.Combine(AppContext.BaseDirectory, "early_startup.log");
+            var message = string.Format(format, args);
+            var line = string.Format("[{0:HH:mm:ss.fff}] {1}", DateTime.Now, message);
+            try
+            {
+                System.IO.File.AppendAllText(earlyLog, line + Environment.NewLine);
             }
             catch
             {

@@ -18,9 +18,9 @@ namespace MyBrowser.Interop
         private static CefRuntime? _instance;
         private static readonly object _initLock = new object();
 
-        private static readonly ILogger _log = new LoggerConfiguration()
+            private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(_logFile, shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         private static CefApp? _app;
@@ -63,10 +63,12 @@ namespace MyBrowser.Interop
                     return true;
                 }
 
-                _log.Information("[CefRuntime] Initializing CEF...");
+                _log.Information("[CefRuntime] === Initialize START ===");
                 _log.Information("[CefRuntime] RuntimePath: {RuntimePath}", options.RuntimePath);
                 _log.Information("[CefRuntime] DisableGpu: {DisableGpu}", options.DisableGpu);
+                _log.Information("[CefRuntime] MultiThreadedMessageLoop: {MTML}", options.MultiThreadedMessageLoop);
                 _log.Information("[CefRuntime] CompatibilityMode: {CompatibilityMode}", options.CompatibilityMode);
+                _log.Information("[CefRuntime] instanceHandle: {0}", (long)instanceHandle);
 
                 var isWin7 = options.CompatibilityMode == CefCompatibilityMode.Win7Compatible;
                 var logSeverity = options.LogSeverity switch
@@ -156,10 +158,13 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] Calling cef_initialize...");
                 _log.Information("[CefRuntime] settings.size = {0}", settings.size);
                 _log.Information("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
+                _log.Information("[CefRuntime] settings.multi_threaded_message_loop = {0}", settings.multi_threaded_message_loop);
                 _log.Information("[CefRuntime] settings.resources_dir = {ResourcesDir}", GetString(settings.resources_dir_path));
                 _log.Information("[CefRuntime] settings.locales_dir = {LocalesDir}", GetString(settings.locales_dir_path));
                 _log.Information("[CefRuntime] settings.log_severity = {LogSeverity}", logSeverity);
                 _log.Information("[CefRuntime] settings.remote_debugging_port = {Port}", options.RemoteDebuggingPort);
+                _log.Information("[CefRuntime] appPtr = {0}, args.instance = {1}", (long)appPtr, (long)args.instance);
+                _log.Information("[CefRuntime] >>> Calling native cef_initialize <<<");
 
                 int result = NativeMethods.cef_initialize(&args, &settings, appPtr, IntPtr.Zero);
                 _log.Information("[CefRuntime] cef_initialize returned: {0}", result);
