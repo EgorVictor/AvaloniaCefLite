@@ -7,9 +7,9 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
     <ItemGroup>
-      <Compile Remove="src\MyBrowser.Demo\bin\**" />
-      <EmbeddedResource Remove="src\MyBrowser.Demo\bin\**" />
-      <None Remove="src\MyBrowser.Demo\bin\**" />
+      <Compile Remove="src\**" />
+      <EmbeddedResource Remove="src\**" />
+      <None Remove="src\**" />
     </ItemGroup>
 
     <ItemGroup>
@@ -19,21 +19,36 @@
         <ProjectReference Include="..\MyBrowser.Interop\MyBrowser.Interop.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="src\MyBrowser.Demo\" />
-    </ItemGroup>
-
     <Target Name="VerifyPhysicalIsolation" BeforeTargets="Build">
         <Message Text="Cef109 驱动输出: $(OutputPath)" Importance="high" />
         <MakeDir Directories="$(OutputPath)" />
     </Target>
 
-    <Target Name="CopyToRuntimes" AfterTargets="PostBuild">
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+    <Target Name="CopyCefNative" AfterTargets="Build">
+        <PropertyGroup>
+            <CefSourceDir>$(MSBuildThisFileDirectory)..\..\lib\Cef109\</CefSourceDir>
+        </PropertyGroup>
         <ItemGroup>
-            <CefResourceFiles Include="$(MSBuildThisFileDirectory)..\MyBrowser.Demo\bin\Debug\net8.0\runtimes\Cef109\**\*" />
+            <_CefFiles Include="$(CefSourceDir)libcef.dll" />
+            <_CefFiles Include="$(CefSourceDir)libcef.lib" />
+            <_CefFiles Include="$(CefSourceDir)libEGL.dll" />
+            <_CefFiles Include="$(CefSourceDir)libGLESv2.dll" />
+            <_CefFiles Include="$(CefSourceDir)chrome_elf.dll" />
+            <_CefFiles Include="$(CefSourceDir)d3dcompiler_47.dll" />
+            <_CefFiles Include="$(CefSourceDir)vulkan-1.dll" />
+            <_CefFiles Include="$(CefSourceDir)vk_swiftshader.dll" />
+            <_CefFiles Include="$(CefSourceDir)vk_swiftshader_icd.json" />
+            <_CefFiles Include="$(CefSourceDir)icudtl.dat" />
+            <_CefFiles Include="$(CefSourceDir)snapshot_blob.bin" />
+            <_CefFiles Include="$(CefSourceDir)v8_context_snapshot.bin" />
+            <_CefFiles Include="$(CefSourceDir)cef_sandbox.lib" />
+            <_CefFiles Include="$(CefSourceDir)resources.pak" />
+            <_CefFiles Include="$(CefSourceDir)chrome_100_percent.pak" />
+            <_CefFiles Include="$(CefSourceDir)chrome_200_percent.pak" />
+            <_CefLocales Include="$(CefSourceDir)locales\**\*" />
         </ItemGroup>
-        <Copy SourceFiles="@(CefResourceFiles)" DestinationFiles="@(CefResourceFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <Message Text="Cef109 驱动已复制到: $(OutputPath)" Importance="high" />
+        <Copy SourceFiles="@(_CefFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefSourceDir)')" />
+        <Copy SourceFiles="@(_CefLocales)" DestinationFolder="$(OutputPath)locales" SkipUnchangedFiles="true" Condition="Exists('$(CefSourceDir)')" />
+        <Message Text="Cef109 原生资源已复制到: $(OutputPath)" Importance="high" />
     </Target>
 </Project>

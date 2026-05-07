@@ -22,3 +22,17 @@ msbuild.log
 *.suo
 *.userosscache
 *.sln.docstates
+
+# CEF native resources (large binaries)
+lib/Cef*/
+libcef.dll
+libEGL.dll
+libGLESv2.dll
+icudtl.dat
+*.pak
+snapshot_blob.bin
+v8_context_snapshot.bin
+vk_swiftshader*
+chrome_elf.dll
+d3dcompiler_*.dll
+vulkan-1.dll
