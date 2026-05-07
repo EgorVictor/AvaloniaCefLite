@@ -28,6 +28,7 @@ namespace MyBrowser.Interop
         public static CefRuntime Instance => _instance ??= new CefRuntime();
         public static bool IsInitialized => _initialized;
         public static bool IsShutdown => _shutdown;
+        public static bool IsContextReady { get; private set; }
 
         /// <summary>
         /// CEF 上下文初始化完成事件。浏览器创建必须在此事件之后进行。
@@ -102,6 +103,12 @@ namespace MyBrowser.Interop
                     _log.Information("[CefRuntime] Cache path: {CachePath}", options.CachePath);
                 }
 
+                if (!string.IsNullOrEmpty(options.BrowserSubprocessPath))
+                {
+                    SetCefString(ref settings.browser_subprocess_path, options.BrowserSubprocessPath);
+                    _log.Information("[CefRuntime] Browser subprocess path: {Path}", options.BrowserSubprocessPath);
+                }
+
                 var driverDir = options.RuntimePath;
                 var resourcesDir = Path.Combine(driverDir, "resources");
                 var localesDir = Path.Combine(driverDir, "locales");
@@ -134,10 +141,11 @@ namespace MyBrowser.Interop
                 var logFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
                 SetCefString(ref settings.log_file, logFile);
 
-                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu);
+                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors);
                 _app.ContextInitialized += (s, e) =>
                 {
-                    _log.Information("[CefRuntime] Forwarding ContextInitialized event");
+                    IsContextReady = true;
+                    _log.Information("[CefRuntime] ContextInitialized - Forwarding event");
                     ContextInitialized?.Invoke(s, e);
                 };
 
@@ -181,7 +189,7 @@ namespace MyBrowser.Interop
             var ptr = Marshal.StringToHGlobalUni(value);
             cefStr.str = (char*)ptr;
             cefStr.length = (UIntPtr)value.Length;
-            cefStr.dtor = Marshal.GetFunctionPointerForDelegate<CefStringDtor>(FreeCefString);
+            cefStr.dtor = Marshal.GetFunctionPointerForDelegate(CefStringDtorDelegate);
         }
 
         private static CefStringDtor? _stringDtor;

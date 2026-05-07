@@ -37,6 +37,7 @@ namespace MyBrowser.Interop
         private bool _disposed;
         private readonly bool _isWin7Or8;
         private readonly bool _hardwareAcceleration;
+        private readonly bool _ignoreCertificateErrors;
 
         // Delegate fields - MUST be kept alive to prevent GC
         private cef_base_add_ref _appAddRef;
@@ -54,11 +55,12 @@ namespace MyBrowser.Interop
         public event EventHandler? ContextInitialized;
         public IntPtr Handle => _appPtr;
 
-        public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true)
+        public CefApp(bool isWin7Or8 = false, bool hardwareAcceleration = true, bool ignoreCertificateErrors = false)
         {
             _isWin7Or8 = isWin7Or8;
             _hardwareAcceleration = hardwareAcceleration;
-            _log.Information("[CefApp] Created: isWin7Or8={IsWin7Or8}, hardwareAcceleration={HardwareAcceleration}", _isWin7Or8, _hardwareAcceleration);
+            _ignoreCertificateErrors = ignoreCertificateErrors;
+            _log.Information("[CefApp] Created: isWin7Or8={IsWin7Or8}, hwAccel={HwAccel}, ignoreCert={IgnoreCert}", _isWin7Or8, _hardwareAcceleration, _ignoreCertificateErrors);
 
             _selfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
             _bphSelfHandle = GCHandle.Alloc(this, GCHandleType.Normal);
@@ -173,7 +175,12 @@ namespace MyBrowser.Interop
                 CommandLineAppendSwitch(commandLine, "disable-accelerated-2d-canvas");
                 CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
                 CommandLineAppendSwitch(commandLine, "disable-webgl");
-                CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
+                
+                if (_ignoreCertificateErrors)
+                {
+                    _log.Information("[CefApp] ignore-certificate-errors is ENABLED");
+                    CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
+                }
             }
             else
             {

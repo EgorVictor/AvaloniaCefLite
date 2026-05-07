@@ -59,7 +59,7 @@ namespace MyBrowser.Driver.Cef109
 
             CefRuntime.Initialize(GetModuleHandle(null), options);
 
-            _browserFactory = new CefBrowserFactory();
+            _browserFactory = new CefBrowserFactory { DisableWebGL = options.DisableWebGL };
             _initialized = true;
 
             _log.Information("[Cef109Factory] CEF 109 初始化完成");
@@ -164,13 +164,13 @@ namespace MyBrowser.Driver.Cef109
 
             if (_windowHandle != IntPtr.Zero && !string.IsNullOrEmpty(_url))
             {
-                if (CefRuntime.IsInitialized)
+                if (CefRuntime.IsContextReady)
                 {
                     CreateBrowser();
                 }
                 else
                 {
-                    _log.Information("[Cef109BrowserControl] CEF 上下文未初始化，等待 ContextInitialized");
+                    _log.Information("[Cef109BrowserControl] CEF Context 未就绪，等待 ContextInitialized");
                     CefRuntime.ContextInitialized += OnCefContextInitialized;
                 }
             }
@@ -181,7 +181,7 @@ namespace MyBrowser.Driver.Cef109
             CefRuntime.ContextInitialized -= OnCefContextInitialized;
             if (_windowHandle != IntPtr.Zero && !string.IsNullOrEmpty(_url) && _browserHandle == IntPtr.Zero)
             {
-                _log.Information("[Cef109BrowserControl] CEF 上下文已就绪，创建浏览器");
+                _log.Information("[Cef109BrowserControl] CEF Context 已就绪，创建浏览器");
                 CreateBrowser();
             }
         }
@@ -221,13 +221,13 @@ namespace MyBrowser.Driver.Cef109
 
             if (_windowHandle != IntPtr.Zero && _browserHandle == IntPtr.Zero)
             {
-                if (CefRuntime.IsInitialized)
+                if (CefRuntime.IsContextReady)
                 {
                     CreateBrowser();
                 }
                 else
                 {
-                    _log.Information("[Cef109BrowserControl] CEF 上下文未初始化，等待 ContextInitialized 后创建");
+                    _log.Information("[Cef109BrowserControl] CEF Context 未就绪，等待 ContextInitialized 后创建");
                     CefRuntime.ContextInitialized += OnCefContextInitialized;
                 }
                 return;

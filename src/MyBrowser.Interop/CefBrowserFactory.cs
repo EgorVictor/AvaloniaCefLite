@@ -33,6 +33,7 @@ namespace MyBrowser.Interop
         public IntPtr BrowserHandle { get; private set; }
         public IntPtr BrowserHostHandle => _browserHostHandle;
         public bool IsInitialized => _initialized;
+        public bool DisableWebGL { get; set; }
         
         /// <summary>
         /// 获取CEF客户端以订阅事件
@@ -107,6 +108,12 @@ namespace MyBrowser.Interop
 
             try
             {
+                // Apply WebGL setting just before creation
+                if (DisableWebGL)
+                {
+                    _settings.webgl = cef_state_t.STATE_DISABLED;
+                }
+
                 cef_client_t* clientPtr = (cef_client_t*)_client.Handle;
                 fixed (cef_browser_settings_t* settingsPtr = &_settings)
                 {

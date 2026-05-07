@@ -110,9 +110,11 @@ namespace MyBrowser
     {
         public string RuntimePath { get; set; } = string.Empty;
         public string? CachePath { get; set; }
+        public string? BrowserSubprocessPath { get; set; }
         public bool MultiThreadedMessageLoop { get; set; } = true;
         public bool DisableGpu { get; set; }
         public bool DisableWebGL { get; set; }
+        public bool IgnoreCertificateErrors { get; set; }
         public int RemoteDebuggingPort { get; set; }
         public CefLogLevel LogSeverity { get; set; } = CefLogLevel.Warning;
         public CefCompatibilityMode CompatibilityMode { get; set; } = CefCompatibilityMode.Auto;
@@ -127,13 +129,22 @@ namespace MyBrowser
             var disableGpu = config.HardwareAcceleration == false
                 || (config.HardwareAcceleration == null && isWin7Or8);
 
+            var subprocessPath = config.RuntimePath;
+            try
+            {
+                subprocessPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            }
+            catch { }
+
             return new CefRuntimeOptions
             {
                 RuntimePath = config.RuntimePath ?? string.Empty,
                 CachePath = config.CachePath,
+                BrowserSubprocessPath = subprocessPath,
                 MultiThreadedMessageLoop = true,
                 DisableGpu = disableGpu,
                 DisableWebGL = isWin7Or8,
+                IgnoreCertificateErrors = false, // Explicitly configurable, default off for security
                 RemoteDebuggingPort = (config.EnableRemoteDebugging && !isWin7Or8) ? config.RemoteDebuggingPort : 0,
                 LogSeverity = isWin7Or8 ? CefLogLevel.Warning : config.LogLevel,
                 CompatibilityMode = compatibilityMode
