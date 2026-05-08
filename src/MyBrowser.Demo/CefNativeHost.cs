@@ -186,6 +186,7 @@ namespace MyBrowser.Demo
         private const int WM_PAINT = 0x000F;
         private const int WM_SETFOCUS = 0x0007;
         private const int WM_DESTROY = 0x0002;
+        private const int WM_SIZE = 0x0005;
         private const int WM_WINDOWPOSCHANGED = 0x0047;
         private const int GWLP_USERDATA = -21;
 
@@ -203,6 +204,11 @@ namespace MyBrowser.Demo
                     FillRect(ps.hdc, ref ps.rcPaint, GetStockObject(WHITE_BRUSH));
                     EndPaint(hWnd, ref ps);
                     return IntPtr.Zero;
+                case WM_SIZE:
+                    var sizeHost = GetInstanceFromHwnd(hWnd);
+                    if (sizeHost != null)
+                        sizeHost._browser?.NotifyResized();
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
                 case WM_SETFOCUS:
                     var focusHost = GetInstanceFromHwnd(hWnd);
                     if (focusHost != null)
@@ -276,7 +282,7 @@ namespace MyBrowser.Demo
         private static extern ushort RegisterClassEx(ref WNDCLASSEX lpWndClass);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
+        private static extern IntPtr GetModuleHandle(string? lpModuleName);
 
         [DllImport("user32.dll")]
         private static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);

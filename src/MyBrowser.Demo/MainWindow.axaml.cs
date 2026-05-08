@@ -30,6 +30,8 @@ namespace MyBrowser.Demo
         public MainWindow()
         {
             InitializeComponent();
+            Closing += OnClosing;
+            Tabs.SelectionChanged += OnTabSelectionChanged;
         }
 
         public void SetFactory(IBrowserFactory factory)
@@ -177,6 +179,26 @@ namespace MyBrowser.Demo
         }
 
         private CefNativeHost ActiveHost => Tabs.SelectedContent as CefNativeHost;
+
+        private void OnClosing(object sender, WindowClosingEventArgs e)
+        {
+            _log.Information("[MainWindow] Window closing...");
+            foreach (var kvp in _tabHostMap)
+            {
+                kvp.Value.Browser?.Dispose();
+            }
+            _tabHostMap.Clear();
+            Dispatcher.UIThread.Post(() => CefDispatcher.Shutdown(), DispatcherPriority.Background);
+        }
+
+        private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var host = ActiveHost;
+            if (host?.Browser != null)
+            {
+                Dispatcher.UIThread.Post(() => host.Browser.SetFocus(), DispatcherPriority.Input);
+            }
+        }
 
         private void OnNewTab(object sender, RoutedEventArgs e) => CreateNewTab();
 

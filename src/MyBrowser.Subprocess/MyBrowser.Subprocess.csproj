@@ -8,6 +8,8 @@
     <RootNamespace>MyBrowser.Subprocess</RootNamespace>
     <AssemblyName>MyBrowser.Subprocess</AssemblyName>
     <OutputType>WinExe</OutputType>
+    <!-- Self-contained by default when RID is specified (for distribution) -->
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

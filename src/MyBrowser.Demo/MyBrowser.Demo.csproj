@@ -25,13 +25,14 @@
         </ProjectReference>
     </ItemGroup>
 
-    <!-- 开发时构建也复制 subprocess 所有文件（支持 RID 输出目录） -->
+    <!-- 开发时构建也复制 subprocess + CEF 资源（支持 RID 输出目录） -->
     <Target Name="CopySubprocessExe" AfterTargets="Build">
         <PropertyGroup>
             <SubprocessRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</SubprocessRidSuffix>
             <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\$(SubprocessRidSuffix)</SubprocessSourceDir>
             <DemoRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</DemoRidSuffix>
             <DemoOutputDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\$(DemoRidSuffix)</DemoOutputDir>
+            <CefSourceDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\Runtimes\Cef109</CefSourceDir>
         </PropertyGroup>
         <ItemGroup>
             <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.*" />
@@ -40,7 +41,25 @@
         </ItemGroup>
         <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
+        <!-- When building with RID, copy CEF resources from non-RID output to RID output -->
+        <Copy SourceFiles="$(CefSourceDir)\libcef.dll;$(CefSourceDir)\libcef.lib;$(CefSourceDir)\libEGL.dll;$(CefSourceDir)\libGLESv2.dll;$(CefSourceDir)\chrome_elf.dll;$(CefSourceDir)\d3dcompiler_47.dll;$(CefSourceDir)\icudtl.dat;$(CefSourceDir)\snapshot_blob.bin;$(CefSourceDir)\v8_context_snapshot.bin;$(CefSourceDir)\cef_sandbox.lib;$(CefSourceDir)\resources.pak;$(CefSourceDir)\chrome_100_percent.pak;$(CefSourceDir)\chrome_200_percent.pak" DestinationFolder="$(DemoOutputDir)Runtimes\Cef109\" SkipUnchangedFiles="true" Condition="'$(RuntimeIdentifier)'!='' And Exists('$(CefSourceDir)')" />
+        <Copy SourceFiles="$(CefSourceDir)\MyBrowser.Driver.Cef109.dll;$(CefSourceDir)\MyBrowser.Driver.Cef109.pdb;$(CefSourceDir)\MyBrowser.Interop.dll;$(CefSourceDir)\MyBrowser.Interop.pdb;$(CefSourceDir)\MyBrowser.Abstractions.dll;$(CefSourceDir)\MyBrowser.Abstractions.pdb;$(CefSourceDir)\MyBrowser.Driver.Cef109.deps.json" DestinationFolder="$(DemoOutputDir)Runtimes\Cef109\" SkipUnchangedFiles="true" Condition="'$(RuntimeIdentifier)'!='' And Exists('$(CefSourceDir)')" />
+        <ItemGroup Condition="'$(RuntimeIdentifier)'!='' And Exists('$(CefSourceDir)')">
+            <_CefLocales Include="$(CefSourceDir)\locales\*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_CefLocales)" DestinationFolder="$(DemoOutputDir)Runtimes\Cef109\locales\" SkipUnchangedFiles="true" Condition="'$(RuntimeIdentifier)'!='' And Exists('$(CefSourceDir)\locales')" />
         <Message Text="Subprocess files copied to $(DemoOutputDir)" Importance="high" />
+    </Target>
+
+    <!-- 发布时先发布 subprocess（self-contained），再复制 CEF 资源 -->
+    <Target Name="PublishSubprocessFirst" BeforeTargets="Publish">
+        <PropertyGroup>
+            <SubprocessPublishDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\publish\</SubprocessPublishDir>
+            <SubprocessRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</SubprocessRidSuffix>
+        </PropertyGroup>
+        <Message Text="Publishing subprocess as self-contained first..." Importance="high" />
+        <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\MyBrowser.Subprocess.csproj&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained true -o &quot;$(SubprocessPublishDir)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" />
+        <Message Text="Subprocess self-contained publish done" Importance="high" />
     </Target>
 
     <!-- 发布时自动复制 CEF 资源文件 + subprocess（支持 RID） -->
@@ -48,18 +67,22 @@
         <PropertyGroup>
             <CefSourceDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\runtimes\Cef109\</CefSourceDir>
             <CefPublishDir>$(PublishDir)</CefPublishDir>
-            <SubprocessRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</SubprocessRidSuffix>
-            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\$(SubprocessRidSuffix)</SubprocessSourceDir>
+            <SubprocessPublishDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\publish\</SubprocessPublishDir>
         </PropertyGroup>
         <ItemGroup>
             <CefFiles Include="$(CefSourceDir)**\*" />
-            <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.*" />
-            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Interop.*" />
-            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Abstractions.*" />
         </ItemGroup>
+        <!-- 复制 CEF 资源 -->
         <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
-        <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
-        <Message Text="CEF resources and subprocess copied to $(CefPublishDir)" Importance="high" />
+        <!-- 复制已发布的 self-contained subprocess（而不是 build 输出） -->
+        <ItemGroup>
+            <SubprocessPublishedFiles Include="$(SubprocessPublishDir)MyBrowser.Subprocess.*" Condition="Exists('$(SubprocessPublishDir)')" />
+            <SubprocessPublishedFiles Include="$(SubprocessPublishDir)*.dll" Condition="Exists('$(SubprocessPublishDir)')" />
+            <SubprocessPublishedFiles Include="$(SubprocessPublishDir)*.exe" Condition="Exists('$(SubprocessPublishDir)')" />
+            <SubprocessPublishedFiles Include="$(SubprocessPublishDir)*.json" Condition="Exists('$(SubprocessPublishDir)')" />
+            <SubprocessPublishedFiles Include="$(SubprocessPublishDir)*.pdb" Condition="Exists('$(SubprocessPublishDir)')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(SubprocessPublishedFiles)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
+        <Message Text="CEF resources and self-contained subprocess copied to $(CefPublishDir)" Importance="high" />
     </Target>
 </Project>

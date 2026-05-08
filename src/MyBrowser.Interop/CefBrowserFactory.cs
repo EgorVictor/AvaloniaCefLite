@@ -395,9 +395,12 @@ namespace MyBrowser.Interop
         /// </summary>
         public void CloseBrowser(bool forceClose = false)
         {
-            if (_browserHostHandle != IntPtr.Zero)
+            if (_browserHostHandle == IntPtr.Zero) return;
+            var ptr = Marshal.ReadIntPtr(_browserHostHandle, Cef109VTableOffsets.BrowserHostCloseBrowser);
+            if (ptr != IntPtr.Zero)
             {
-                NativeMethods.cef_browser_host_close_browser(_browserHostHandle, forceClose ? 1 : 0);
+                var closeBrowser = Marshal.GetDelegateForFunctionPointer<cef_browser_host_close_browser>(ptr);
+                closeBrowser(_browserHostHandle, forceClose ? 1 : 0);
             }
         }
 
