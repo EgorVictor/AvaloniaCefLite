@@ -178,7 +178,7 @@ namespace MyBrowser.Demo
 
         private static void ResetLogFile()
         {
-            var logFile = LogHelper.GetLogPath();
+            var logFile = LogHelper.GetLogPath("mybrowser-main.log");
             var debugFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
             try
             {

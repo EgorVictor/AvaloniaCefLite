@@ -12,7 +12,7 @@ namespace MyBrowser.Interop
     /// </summary>
     public sealed unsafe class CefRuntime
     {
-        private static readonly string _logFile = LogHelper.GetLogPath();
+        private static readonly string _logFile = LogHelper.GetLogPath("mybrowser-main.log");
         private static bool _initialized;
         private static bool _shutdown;
         private static CefRuntime? _instance;
@@ -20,7 +20,7 @@ namespace MyBrowser.Interop
 
             private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(_logFile, shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(_logFile, shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         private static CefApp? _app;

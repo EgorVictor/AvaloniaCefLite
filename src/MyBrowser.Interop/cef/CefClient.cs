@@ -11,7 +11,7 @@ namespace MyBrowser.Interop.cef
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath("mybrowser-main.log"), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         private GCHandle _selfHandle;
@@ -264,7 +264,7 @@ namespace MyBrowser.Interop.cef
 
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath("mybrowser-main.log"), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         public IntPtr Handle => _handlerPtr;
@@ -414,7 +414,7 @@ namespace MyBrowser.Interop.cef
 
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath("mybrowser-main.log"), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         public IntPtr Handle => _handlerPtr;

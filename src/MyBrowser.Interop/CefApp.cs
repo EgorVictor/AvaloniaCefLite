@@ -16,7 +16,7 @@ namespace MyBrowser.Interop
     {
         private static readonly ILogger _log = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.File(LogHelper.GetLogPath(), shared: false, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
+            .WriteTo.File(LogHelper.GetLogPath("mybrowser-main.log"), shared: true, encoding: System.Text.Encoding.UTF8, outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message}\n")
             .CreateLogger();
 
         // App ref-count (for cef_app_t)
