@@ -57,9 +57,11 @@ namespace MyBrowser.Demo
         }
 
         static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
+        {
+            return AppBuilder.Configure<App>()
                 .UsePlatformDetect()
                 .LogToTrace();
+        }
 
         private static void ConfigureCefNativeSearchPath()
         {

@@ -29,7 +29,7 @@
             </StackPanel>
         </Border>
 
-        <TabControl x:Name="Tabs">
+        <TabControl x:Name="Tabs" Background="White">
         </TabControl>
     </DockPanel>
 </Window>
