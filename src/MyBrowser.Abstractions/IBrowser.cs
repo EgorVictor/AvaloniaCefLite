@@ -157,9 +157,19 @@ namespace MyBrowser
                 ? (isWin7Or8 ? CefCompatibilityMode.Win7Compatible : CefCompatibilityMode.ModernWindows)
                 : config.CompatibilityMode;
 
-            var disableGpu = config.HardwareAcceleration == false
-                || (config.HardwareAcceleration == null && isWin7Or8)
-                || (config.Win7RenderMode == CefWin7RenderMode.SafeNoGpu && config.HardwareAcceleration != true);
+            bool disableGpu;
+            if (config.HardwareAcceleration.HasValue)
+            {
+                disableGpu = !config.HardwareAcceleration.Value;
+            }
+            else if (isWin7Or8)
+            {
+                disableGpu = config.Win7RenderMode == CefWin7RenderMode.SafeNoGpu;
+            }
+            else
+            {
+                disableGpu = false;
+            }
 
             // Use configured subprocess path, or fall back to current process
             var subprocessPath = config.BrowserSubprocessPath;
