@@ -37,10 +37,14 @@ namespace MyBrowser.Demo
                 {
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        if (_hostHwnd != IntPtr.Zero && _browser != null && !_browserAttached)
+                        if (_hostHwnd != IntPtr.Zero && _browser != null)
                         {
-                            _browser.SetWindowHandle(_hostHwnd);
-                            _browserAttached = true;
+                            if (!_browserAttached)
+                            {
+                                _browser.SetWindowHandle(_hostHwnd);
+                                _browserAttached = true;
+                            }
+                            ShowWindow(_hostHwnd, SW_SHOW);
                             _browser.NotifyResized();
                         }
                     });
@@ -130,7 +134,7 @@ namespace MyBrowser.Demo
                 0,
                 HOST_CLASS_NAME,
                 string.Empty,
-                WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+                WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
                 0,
                 0,
                 800,
@@ -186,7 +190,7 @@ namespace MyBrowser.Demo
                 case WM_PAINT:
                     var ps = new PAINTSTRUCT();
                     BeginPaint(hWnd, ref ps);
-                    FillRect(ps.hdc, ref ps.rcPaint, GetStockObject(NULL_BRUSH));
+                    FillRect(ps.hdc, ref ps.rcPaint, GetStockObject(WHITE_BRUSH));
                     EndPaint(hWnd, ref ps);
                     return IntPtr.Zero;
                 case WM_SIZE:
@@ -235,6 +239,9 @@ namespace MyBrowser.Demo
             uint uFlags);
 
         [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", SetLastError = true)]
@@ -255,7 +262,9 @@ namespace MyBrowser.Demo
         [DllImport("gdi32.dll")]
         private static extern IntPtr GetStockObject(int fnObject);
 
+        private const int WHITE_BRUSH = 0;
         private const int NULL_BRUSH = 5;
+        private const int SW_SHOW = 5;
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint SWP_SHOWWINDOW = 0x0040;
