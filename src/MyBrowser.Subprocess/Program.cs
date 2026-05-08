@@ -11,17 +11,22 @@ namespace MyBrowser.Subprocess
         [STAThread]
         private static int Main(string[] args)
         {
+            var subprocessTrace = Environment.GetEnvironmentVariable("MYBROWSER_SUBPROCESS_TRACE") == "1";
             var pid = Environment.ProcessId;
-            var logDir = AppContext.BaseDirectory;
-            var startupLog = Path.Combine(logDir, $"subprocess-startup-{pid}.log");
-            try
+
+            if (subprocessTrace)
             {
-                File.AppendAllText(startupLog,
-                    $"[{DateTime.Now:HH:mm:ss.fff}] PID={pid} OS={Environment.OSVersion} CommandLine={Environment.CommandLine}\n" +
-                    $"BaseDir={logDir}\n" +
-                    $"Args={string.Join(" | ", args)}\n");
+                var logDir = AppContext.BaseDirectory;
+                var startupLog = Path.Combine(logDir, $"subprocess-startup-{pid}.log");
+                try
+                {
+                    File.AppendAllText(startupLog,
+                        $"[{DateTime.Now:HH:mm:ss.fff}] PID={pid} OS={Environment.OSVersion} CommandLine={Environment.CommandLine}\n" +
+                        $"BaseDir={logDir}\n" +
+                        $"Args={string.Join(" | ", args)}\n");
+                }
+                catch { }
             }
-            catch { }
 
             var hasTypeFlag = false;
             for (int i = 0; i < args.Length; i++)
@@ -45,11 +50,21 @@ namespace MyBrowser.Subprocess
             };
 
             var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
-            try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ExecuteMainProcess returned: {exitCode}\n"); } catch { }
+            if (subprocessTrace)
+            {
+                var logDir = AppContext.BaseDirectory;
+                var startupLog = Path.Combine(logDir, $"subprocess-startup-{pid}.log");
+                try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ExecuteMainProcess returned: {exitCode}\n"); } catch { }
+            }
 
             if (hasTypeFlag && exitCode < 0)
             {
-                try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: --type= flag present but CEF didn't recognize as subprocess\n"); } catch { }
+                if (subprocessTrace)
+                {
+                    var logDir = AppContext.BaseDirectory;
+                    var startupLog = Path.Combine(logDir, $"subprocess-startup-{pid}.log");
+                    try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: --type= flag present but CEF didn't recognize as subprocess\n"); } catch { }
+                }
                 return 1;
             }
 

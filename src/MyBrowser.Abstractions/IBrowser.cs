@@ -54,7 +54,8 @@ namespace MyBrowser
     {
         SafeNoGpu,
         SwiftShader,
-        D3D9Performance
+        D3D9Performance,
+        SafeNoGpuNoGpuProcess
     }
 
     /// <summary>
@@ -164,7 +165,7 @@ namespace MyBrowser
             }
             else if (isWin7Or8)
             {
-                disableGpu = false;
+                disableGpu = config.Win7RenderMode == CefWin7RenderMode.SafeNoGpuNoGpuProcess;
             }
             else
             {

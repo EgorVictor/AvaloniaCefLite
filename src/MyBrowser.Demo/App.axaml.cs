@@ -11,6 +11,8 @@ namespace MyBrowser.Demo
     /// </summary>
     public partial class App : Application
     {
+        private IBrowserFactory? _factory;
+
         public override void OnFrameworkInitializationCompleted()
         {
             base.OnFrameworkInitializationCompleted();
@@ -18,7 +20,7 @@ namespace MyBrowser.Demo
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 var baseDir = AppContext.BaseDirectory;
-                var factory = CefDispatcher.Boot(new BrowserConfig
+                _factory = CefDispatcher.Boot(new BrowserConfig
                 {
                     CompatibilityMode = CefCompatibilityMode.Win7Compatible,
                     Win7RenderMode = CefWin7RenderMode.SafeNoGpu,
@@ -31,8 +33,14 @@ namespace MyBrowser.Demo
                         "Cache")
                 });
 
+                desktop.Exit += (_, _) =>
+                {
+                    try { _factory?.Shutdown(); } catch { }
+                    _factory = null;
+                };
+
                 var window = new MainWindow();
-                window.SetFactory(factory);
+                window.SetFactory(_factory);
 
                 desktop.MainWindow = window;
                 desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;

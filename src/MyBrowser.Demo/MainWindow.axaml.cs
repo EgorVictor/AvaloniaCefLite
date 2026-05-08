@@ -188,7 +188,9 @@ namespace MyBrowser.Demo
                 kvp.Value.Browser?.Dispose();
             }
             _tabHostMap.Clear();
-            Dispatcher.UIThread.Post(() => CefDispatcher.Shutdown(), DispatcherPriority.Background);
+            _log.Information("[MainWindow] All browsers disposed, calling CefDispatcher.Shutdown...");
+            CefDispatcher.Shutdown();
+            _log.Information("[MainWindow] Shutdown complete");
         }
 
         private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)

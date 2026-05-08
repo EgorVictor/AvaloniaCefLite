@@ -172,6 +172,9 @@ namespace MyBrowser.Interop
 
         private unsafe void OnBeforeChildProcessLaunch(IntPtr self, IntPtr commandLine)
         {
+            var childTrace = Environment.GetEnvironmentVariable("MYBROWSER_CHILD_CMD") == "1";
+            if (!childTrace) return;
+
             if (commandLine == IntPtr.Zero)
             {
                 _log.Information("[CefApp] OnBeforeChildProcessLaunch - null command line");
@@ -194,7 +197,6 @@ namespace MyBrowser.Interop
                 return;
             }
 
-            // Read the string from cef_string_userfree_t (which is cef_string_t*)
             var strPtr = (cef_string_t*)userFreeStr;
             if (strPtr->str != null && strPtr->length != UIntPtr.Zero)
             {
@@ -202,8 +204,6 @@ namespace MyBrowser.Interop
                 _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
             }
 
-            // Free the internal string data using CEF's own dtor.
-            // Do NOT free the struct itself - CEF allocated it with its own allocator.
             if (strPtr->dtor != IntPtr.Zero)
             {
                 var dtor = Marshal.GetDelegateForFunctionPointer<cef_string_dtor_t>(strPtr->dtor);
@@ -216,39 +216,69 @@ namespace MyBrowser.Interop
             var process = GetCefString(processType);
             _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel} win7RenderMode={Win7RenderMode}, ignoreCert={IgnoreCert}", process, _isWin7Or8, _hardwareAcceleration, _win7RenderMode, _ignoreCertificateErrors);
 
+            var switches = new System.Collections.Generic.List<string>();
+
             if (_isWin7Or8)
             {
-                // Win7: 根据 render mode 选择 GPU 策略
                 switch (_win7RenderMode)
                 {
                     case MyBrowser.CefWin7RenderMode.SafeNoGpu:
                         _log.Information("[CefApp] Win7 SafeNoGpu: 保留GPU渲染，仅软件合成");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
-                        CommandLineAppendSwitch(commandLine, "disable-webgl");
-                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                        switches.Add("disable-gpu-compositing");
+                        switches.Add("disable-webgl");
+                        switches.Add("disable-accelerated-video-decode");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.SwiftShader:
                         _log.Information("[CefApp] Win7 SwiftShader: 软件GL渲染");
                         CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
-                        CommandLineAppendSwitch(commandLine, "disable-webgl");
-                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+                        switches.Add("disable-webgl");
+                        switches.Add("disable-accelerated-video-decode");
+                        switches.Add("disable-gpu-compositing");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.D3D9Performance:
                         _log.Information("[CefApp] Win7 D3D9Performance: ANGLE D3D9");
                         CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
-                        CommandLineAppendSwitch(commandLine, "disable-webgl");
-                        CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
+                        switches.Add("disable-webgl");
+                        switches.Add("disable-accelerated-video-decode");
+                        switches.Add("disable-gpu-compositing");
                         CommandLineAppendSwitchWithValue(commandLine, "disable-features", "Vulkan");
                         break;
+
+                    case MyBrowser.CefWin7RenderMode.SafeNoGpuNoGpuProcess:
+                        _log.Information("[CefApp] Win7 SafeNoGpuNoGpuProcess: 诊断模式 - 完全禁用GPU进程");
+                        switches.Add("disable-gpu");
+                        switches.Add("disable-gpu-process");
+                        switches.Add("disable-gpu-compositing");
+                        switches.Add("disable-webgl");
+                        switches.Add("disable-accelerated-video-decode");
+                        switches.Add("disable-gpu-rasterization");
+                        break;
+                }
+
+                foreach (var sw in switches)
+                {
+                    CommandLineAppendSwitch(commandLine, sw);
                 }
             }
             else
             {
                 _log.Information("[CefApp] Win10+: disable-gpu-compositing 防止导航后黑屏");
                 CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+            }
+
+            // 验证是否已附加成功
+            if (_isWin7Or8)
+            {
+                foreach (var sw in switches)
+                {
+                    var has = CommandLineHasSwitch(commandLine, sw);
+                    if (has)
+                        _log.Information("[CefApp] VERIFY: switch '{Switch}' = OK", sw);
+                    else
+                        _log.Warning("[CefApp] VERIFY: switch '{Switch}' = MISSING!", sw);
+                }
             }
 
             if (_ignoreCertificateErrors)
@@ -277,6 +307,22 @@ namespace MyBrowser.Interop
                 cefStr->length = (UIntPtr)switchName.Length;
                 cefStr->dtor = IntPtr.Zero;
                 appendSwitch((IntPtr)commandLine, cefStr);
+            }
+        }
+
+        private static unsafe bool CommandLineHasSwitch(cef_command_line_t* commandLine, string switchName)
+        {
+            if (commandLine == null) return false;
+            var funcPtr = commandLine->has_switch;
+            if (funcPtr == IntPtr.Zero) return false;
+            var hasSwitch = Marshal.GetDelegateForFunctionPointer<cef_command_line_has_switch>(funcPtr);
+            var cefStr = stackalloc cef_string_t[1];
+            fixed (char* chars = switchName)
+            {
+                cefStr->str = chars;
+                cefStr->length = (UIntPtr)switchName.Length;
+                cefStr->dtor = IntPtr.Zero;
+                return hasSwitch((IntPtr)commandLine, cefStr) != 0;
             }
         }
 
