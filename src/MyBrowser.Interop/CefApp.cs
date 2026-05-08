@@ -193,7 +193,7 @@ namespace MyBrowser.Interop
                     }
                     finally
                     {
-                        NativeMethods.cef_string_userfree_free(userFreePtr);
+                        Marshal.FreeCoTaskMem(userFreePtr);
                     }
                 }
                 else

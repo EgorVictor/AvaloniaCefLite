@@ -543,8 +543,7 @@ namespace MyBrowser.Interop.cef.capi
         [DllImport(cef_capi.DllName, EntryPoint = "cef_frame_is_valid")]
         public static extern int cef_frame_is_valid(IntPtr frame);
 
-        [DllImport(cef_capi.DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void cef_string_userfree_free(IntPtr str);
+
     }
 
     #endregion
