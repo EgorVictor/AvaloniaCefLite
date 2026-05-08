@@ -164,7 +164,7 @@ namespace MyBrowser
             }
             else if (isWin7Or8)
             {
-                disableGpu = config.Win7RenderMode == CefWin7RenderMode.SafeNoGpu;
+                disableGpu = false;
             }
             else
             {
