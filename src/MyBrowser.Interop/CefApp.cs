@@ -183,10 +183,23 @@ namespace MyBrowser.Interop
             if (getCmdLineStrPtr != IntPtr.Zero)
             {
                 var getCmdLineStr = Marshal.GetDelegateForFunctionPointer<cef_command_line_get_command_line_string>(getCmdLineStrPtr);
-                var cefStr = new cef_string_t();
-                getCmdLineStr(commandLine, &cefStr);
-                var cmdLineText = GetCefString(&cefStr);
-                _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
+                var userFreePtr = getCmdLineStr(commandLine);
+                if (userFreePtr != IntPtr.Zero)
+                {
+                    try
+                    {
+                        var cmdLineText = Marshal.PtrToStringUni(userFreePtr);
+                        _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
+                    }
+                    finally
+                    {
+                        NativeMethods.cef_string_userfree_free(userFreePtr);
+                    }
+                }
+                else
+                {
+                    _log.Information("[CefApp] OnBeforeChildProcessLaunch - get_command_line_string returned null");
+                }
             }
             else
             {

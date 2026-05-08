@@ -433,25 +433,37 @@ namespace MyBrowser.Interop.cef.capi
         public cef_base_ref_counted_t base_;
         public IntPtr is_valid;
         public IntPtr is_read_only;
-        public IntPtr get_object;
+        public IntPtr copy;
+        public IntPtr init_from_argv;
+        public IntPtr init_from_string;
+        public IntPtr reset;
+        public IntPtr get_argv;
         public IntPtr get_command_line_string;
         public IntPtr get_program;
-        public IntPtr get_arguments;
+        public IntPtr set_program;
         public IntPtr has_switches;
+        public IntPtr has_switch;
+        public IntPtr get_switch_value;
         public IntPtr get_switches;
-        public IntPtr get_flags;
         public IntPtr append_switch;
         public IntPtr append_switch_with_value;
         public IntPtr has_arguments;
-        public IntPtr get_arguments_list;
-        public IntPtr get_switch_value;
-        public IntPtr has_switch_with_value;
+        public IntPtr get_arguments;
+        public IntPtr append_argument;
+        public IntPtr prepend_wrapper;
     }
 
-    public unsafe delegate int cef_command_line_get_command_line_string(IntPtr self, cef_string_t* result);
+    // get_command_line_string returns cef_string_userfree_t (IntPtr), not int + out param
+    public unsafe delegate IntPtr cef_command_line_get_command_line_string(IntPtr self);
+    public unsafe delegate IntPtr cef_command_line_get_program(IntPtr self);
+    public unsafe delegate IntPtr cef_command_line_get_switch_value(IntPtr self, cef_string_t* name);
+    public unsafe delegate int cef_command_line_has_switches(IntPtr self);
+    public unsafe delegate int cef_command_line_has_switch(IntPtr self, cef_string_t* name);
     public unsafe delegate void cef_command_line_append_switch(IntPtr self, cef_string_t* name);
     public unsafe delegate void cef_command_line_append_switch_with_value(IntPtr self, cef_string_t* name, cef_string_t* value);
     public unsafe delegate void cef_app_on_before_command_line_processing(IntPtr self, cef_string_t* process_type, cef_command_line_t* command_line);
+
+    // Free userfree string returned by get_command_line_string, get_program, get_switch_value
 
     // CEF 109 cef_app_t from cef_app_capi.h
     [StructLayout(LayoutKind.Sequential)]
@@ -530,6 +542,9 @@ namespace MyBrowser.Interop.cef.capi
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_frame_is_valid")]
         public static extern int cef_frame_is_valid(IntPtr frame);
+
+        [DllImport(cef_capi.DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cef_string_userfree_free(IntPtr str);
     }
 
     #endregion
