@@ -463,7 +463,8 @@ namespace MyBrowser.Interop.cef.capi
     public unsafe delegate void cef_command_line_append_switch_with_value(IntPtr self, cef_string_t* name, cef_string_t* value);
     public unsafe delegate void cef_app_on_before_command_line_processing(IntPtr self, cef_string_t* process_type, cef_command_line_t* command_line);
 
-    // Free userfree string returned by get_command_line_string, get_program, get_switch_value
+    // cef_string_t.dtor delegate - frees internal string data
+    public unsafe delegate void cef_string_dtor_t(char* str);
 
     // CEF 109 cef_app_t from cef_app_capi.h
     [StructLayout(LayoutKind.Sequential)]
@@ -542,8 +543,6 @@ namespace MyBrowser.Interop.cef.capi
 
         [DllImport(cef_capi.DllName, EntryPoint = "cef_frame_is_valid")]
         public static extern int cef_frame_is_valid(IntPtr frame);
-
-
     }
 
     #endregion

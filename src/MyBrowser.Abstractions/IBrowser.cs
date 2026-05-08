@@ -110,7 +110,7 @@ namespace MyBrowser
         /// <summary>
         /// 日志级别
         /// </summary>
-        public CefLogLevel LogLevel { get; set; } = CefLogLevel.Warning;
+        public CefLogLevel LogLevel { get; set; } = CefLogLevel.Verbose;
 
         /// <summary>
         /// 忽略证书错误（仅用于内网/调试环境）
@@ -192,7 +192,7 @@ namespace MyBrowser
                 DisableWebGL = isWin7Or8,
                 IgnoreCertificateErrors = false, // Explicitly configurable, default off for security
                 RemoteDebuggingPort = (config.EnableRemoteDebugging && !isWin7Or8) ? config.RemoteDebuggingPort : 0,
-                LogSeverity = isWin7Or8 ? CefLogLevel.Warning : config.LogLevel,
+                LogSeverity = config.LogLevel,
                 CompatibilityMode = compatibilityMode,
                 Win7RenderMode = config.Win7RenderMode
             };

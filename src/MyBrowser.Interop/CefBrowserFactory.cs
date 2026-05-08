@@ -67,12 +67,13 @@ namespace MyBrowser.Interop
         public bool CreateBrowser(IntPtr parentHwnd, string initialUrl, out IntPtr browserHandle)
         {
             _log.Information("[CefBrowserFactory] CreateBrowser: URL={InitialUrl}, ParentHWND={ParentHWND}", initialUrl, parentHwnd);
+            _log.Information("[CefBrowserFactory] CEF initialized={IsInit}, ContextReady={CtxReady}", CefRuntime.IsInitialized, CefRuntime.IsContextReady);
             browserHandle = IntPtr.Zero;
             _browserHostHandle = IntPtr.Zero;
 
             if (!CefRuntime.IsInitialized)
             {
-                _log.Information("[CefBrowserFactory] CEF not initialized!");
+                _log.Warning("[CefBrowserFactory] CEF not initialized!");
                 return false;
             }
 
@@ -375,7 +376,7 @@ namespace MyBrowser.Interop
             loadUrl(mainFrame, &cefUrl);
             Marshal.FreeHGlobal(urlStr);
 
-            _log.Information("[CefBrowserFactory] LoadUrl: {Url}", url);
+            _log.Information("[CefBrowserFactory] LoadUrl OK: {Url}", url);
         }
 
         /// <summary>

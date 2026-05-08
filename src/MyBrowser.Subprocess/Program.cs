@@ -17,7 +17,7 @@ namespace MyBrowser.Subprocess
             try
             {
                 File.AppendAllText(startupLog,
-                    $"[{DateTime.Now:HH:mm:ss.fff}] PID={pid} CommandLine={Environment.CommandLine}\n" +
+                    $"[{DateTime.Now:HH:mm:ss.fff}] PID={pid} OS={Environment.OSVersion} CommandLine={Environment.CommandLine}\n" +
                     $"BaseDir={logDir}\n" +
                     $"Args={string.Join(" | ", args)}\n");
             }

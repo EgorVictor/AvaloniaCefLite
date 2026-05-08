@@ -20,6 +20,8 @@ namespace MyBrowser.Demo
                 var baseDir = AppContext.BaseDirectory;
                 var factory = CefDispatcher.Boot(new BrowserConfig
                 {
+                    CompatibilityMode = CefCompatibilityMode.Win7Compatible,
+                    Win7RenderMode = CefWin7RenderMode.SafeNoGpu,
                     InitialUrl = "about:blank",
                     BrowserSubprocessPath = Path.Combine(baseDir, "MyBrowser.Subprocess.exe"),
                     CachePath = Path.Combine(

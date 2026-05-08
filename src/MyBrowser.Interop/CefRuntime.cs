@@ -40,6 +40,9 @@ namespace MyBrowser.Interop
 
         public static int ExecuteMainProcess(IntPtr instanceHandle, CefRuntimeOptions? options = null)
         {
+            var os = Environment.OSVersion;
+            _log.Information("[CefRuntime] ExecuteMainProcess: OS={OsVersion}, CLR={ClrVersion}", os.VersionString, Environment.Version);
+
             if (_executeMainProcessCalled)
             {
                 _log.Warning("[CefRuntime] ExecuteMainProcess called twice! Stack: {0}", Environment.StackTrace);
@@ -51,6 +54,8 @@ namespace MyBrowser.Interop
             var disableGpu = options != null && options.DisableGpu;
             var win7RenderMode = options != null ? options.Win7RenderMode : CefWin7RenderMode.SafeNoGpu;
             var ignoreCert = options != null && options.IgnoreCertificateErrors;
+
+            _log.Information("[CefRuntime] ExecuteMainProcess options: isWin7={IsWin7}, disableGpu={DisableGpu}, win7RenderMode={Win7RenderMode}, ignoreCert={IgnoreCert}", isWin7, disableGpu, win7RenderMode, ignoreCert);
 
             _executeApp = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !disableGpu, ignoreCertificateErrors: ignoreCert, win7RenderMode: win7RenderMode);
 
@@ -119,13 +124,25 @@ namespace MyBrowser.Interop
                 {
                     SetCefString(ref settings.cache_path, options.CachePath);
                     SetCefString(ref settings.root_cache_path, options.CachePath);
-                    _log.Information("[CefRuntime] Cache path: {CachePath}", options.CachePath);
+                    var cacheExists = Directory.Exists(options.CachePath);
+                    _log.Information("[CefRuntime] Cache path: {CachePath} (exists={CacheExists})", options.CachePath, cacheExists);
+                }
+                else
+                {
+                    _log.Information("[CefRuntime] No cache path set - CEF will use default");
                 }
 
                 if (!string.IsNullOrEmpty(options.BrowserSubprocessPath))
                 {
+                    var subExists = File.Exists(options.BrowserSubprocessPath);
+                    _log.Information("[CefRuntime] Browser subprocess path: {Path} (exists={SubExists})", options.BrowserSubprocessPath, subExists);
+                    if (!subExists)
+                        _log.Warning("[CefRuntime] Subprocess EXE not found at: {Path}", options.BrowserSubprocessPath);
                     SetCefString(ref settings.browser_subprocess_path, options.BrowserSubprocessPath);
-                    _log.Information("[CefRuntime] Browser subprocess path: {Path}", options.BrowserSubprocessPath);
+                }
+                else
+                {
+                    _log.Information("[CefRuntime] No subprocess path set - CEF defaults to main exe");
                 }
 
                 var driverDir = options.RuntimePath;

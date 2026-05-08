@@ -180,80 +180,81 @@ namespace MyBrowser.Interop
 
             var cmdLinePtr = (cef_command_line_t*)commandLine;
             var getCmdLineStrPtr = cmdLinePtr->get_command_line_string;
-            if (getCmdLineStrPtr != IntPtr.Zero)
-            {
-                var getCmdLineStr = Marshal.GetDelegateForFunctionPointer<cef_command_line_get_command_line_string>(getCmdLineStrPtr);
-                var userFreePtr = getCmdLineStr(commandLine);
-                if (userFreePtr != IntPtr.Zero)
-                {
-                    try
-                    {
-                        var cmdLineText = Marshal.PtrToStringUni(userFreePtr);
-                        _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
-                    }
-                    finally
-                    {
-                        Marshal.FreeCoTaskMem(userFreePtr);
-                    }
-                }
-                else
-                {
-                    _log.Information("[CefApp] OnBeforeChildProcessLaunch - get_command_line_string returned null");
-                }
-            }
-            else
+            if (getCmdLineStrPtr == IntPtr.Zero)
             {
                 _log.Information("[CefApp] OnBeforeChildProcessLaunch - no get_command_line_string function");
+                return;
+            }
+
+            var getCmdLineStr = Marshal.GetDelegateForFunctionPointer<cef_command_line_get_command_line_string>(getCmdLineStrPtr);
+            var userFreeStr = getCmdLineStr(commandLine);
+            if (userFreeStr == IntPtr.Zero)
+            {
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch - get_command_line_string returned null");
+                return;
+            }
+
+            // Read the string from cef_string_userfree_t (which is cef_string_t*)
+            var strPtr = (cef_string_t*)userFreeStr;
+            if (strPtr->str != null && strPtr->length != UIntPtr.Zero)
+            {
+                var cmdLineText = new string(strPtr->str, 0, (int)strPtr->length);
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
+            }
+
+            // Free the internal string data using CEF's own dtor.
+            // Do NOT free the struct itself - CEF allocated it with its own allocator.
+            if (strPtr->dtor != IntPtr.Zero)
+            {
+                var dtor = Marshal.GetDelegateForFunctionPointer<cef_string_dtor_t>(strPtr->dtor);
+                dtor(strPtr->str);
             }
         }
 
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
             var process = GetCefString(processType);
-            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel} win7RenderMode={Win7RenderMode}", process, _isWin7Or8, _hardwareAcceleration, _win7RenderMode);
+            _log.Information("[CefApp] OnBeforeCommandLineProcessing process={Process} isWin7Or8={IsWin7Or8} hwAccel={HwAccel} win7RenderMode={Win7RenderMode}, ignoreCert={IgnoreCert}", process, _isWin7Or8, _hardwareAcceleration, _win7RenderMode, _ignoreCertificateErrors);
 
-            if (!_hardwareAcceleration)
+            if (_isWin7Or8)
             {
+                // Win7: 根据 render mode 选择 GPU 策略
                 switch (_win7RenderMode)
                 {
                     case MyBrowser.CefWin7RenderMode.SafeNoGpu:
-                        _log.Information("[CefApp] Applying SafeNoGpu flags");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu");
+                        _log.Information("[CefApp] Win7 SafeNoGpu: 保留GPU渲染，仅软件合成");
                         CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu-vsync");
                         CommandLineAppendSwitch(commandLine, "disable-webgl");
                         CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu-rasterization");
-                        CommandLineAppendSwitch(commandLine, "disable-zero-copy");
-                        CommandLineAppendSwitch(commandLine, "disable-gpu-watchdog");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.SwiftShader:
-                        _log.Information("[CefApp] Applying SwiftShader flags");
+                        _log.Information("[CefApp] Win7 SwiftShader: 软件GL渲染");
                         CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
                         CommandLineAppendSwitch(commandLine, "disable-webgl");
                         CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                        CommandLineAppendSwitchWithValue(commandLine, "disable-features", "Vulkan");
+                        CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.D3D9Performance:
-                        _log.Information("[CefApp] Applying D3D9Performance flags");
+                        _log.Information("[CefApp] Win7 D3D9Performance: ANGLE D3D9");
                         CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
                         CommandLineAppendSwitch(commandLine, "disable-webgl");
                         CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
                         CommandLineAppendSwitchWithValue(commandLine, "disable-features", "Vulkan");
                         break;
                 }
-
-                if (_ignoreCertificateErrors)
-                {
-                    _log.Information("[CefApp] ignore-certificate-errors is ENABLED");
-                    CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
-                }
             }
             else
             {
-                _log.Information(_isWin7Or8 ? "[CefApp] Win7 with GPU acceleration enabled" : "[CefApp] Win10+ with GPU acceleration enabled");
+                _log.Information("[CefApp] Win10+: disable-gpu-compositing 防止导航后黑屏");
+                CommandLineAppendSwitch(commandLine, "disable-gpu-compositing");
+            }
+
+            if (_ignoreCertificateErrors)
+            {
+                _log.Information("[CefApp] ignore-certificate-errors ENABLED");
+                CommandLineAppendSwitch(commandLine, "ignore-certificate-errors");
             }
         }
 
