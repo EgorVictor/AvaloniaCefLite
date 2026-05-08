@@ -25,14 +25,20 @@
         </ProjectReference>
     </ItemGroup>
 
-    <!-- 开发时构建也复制 subprocess exe -->
+    <!-- 开发时构建也复制 subprocess 所有文件 -->
     <Target Name="CopySubprocessExe" AfterTargets="Build">
         <PropertyGroup>
             <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\</SubprocessSourceDir>
             <DemoOutputDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\</DemoOutputDir>
         </PropertyGroup>
-        <Copy SourceFiles="$(SubprocessSourceDir)MyBrowser.Subprocess.exe" DestinationFiles="$(DemoOutputDir)MyBrowser.Subprocess.exe" SkipUnchangedFiles="true" />
-        <Message Text="Subprocess exe copied to output directory" Importance="high" />
+        <ItemGroup>
+            <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.*" />
+            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Interop.*" />
+            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Abstractions.*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
+        <Message Text="Subprocess files copied to output directory" Importance="high" />
     </Target>
 
     <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
@@ -44,10 +50,13 @@
         </PropertyGroup>
         <ItemGroup>
             <CefFiles Include="$(CefSourceDir)**\*" />
-            <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.exe" />
+            <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.*" />
+            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Interop.*" />
+            <SubprocessDeps Include="$(SubprocessSourceDir)MyBrowser.Abstractions.*" />
         </ItemGroup>
         <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-        <Copy SourceFiles="@(SubprocessFiles)" DestinationFiles="$(CefPublishDir)MyBrowser.Subprocess.exe" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
         <Message Text="CEF resources and subprocess copied" Importance="high" />
     </Target>
 </Project>

@@ -11,6 +11,18 @@ namespace MyBrowser.Subprocess
         [STAThread]
         private static int Main(string[] args)
         {
+            var pid = Environment.ProcessId;
+            var logDir = AppContext.BaseDirectory;
+            var startupLog = Path.Combine(logDir, $"subprocess-startup-{pid}.log");
+            try
+            {
+                File.AppendAllText(startupLog,
+                    $"[{DateTime.Now:HH:mm:ss.fff}] PID={pid} CommandLine={Environment.CommandLine}\n" +
+                    $"BaseDir={logDir}\n" +
+                    $"Args={string.Join(" | ", args)}\n");
+            }
+            catch { }
+
             ConfigureCefNativeSearchPath();
 
             var options = new CefRuntimeOptions
@@ -23,6 +35,7 @@ namespace MyBrowser.Subprocess
             };
 
             var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
+            try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ExecuteMainProcess returned: {exitCode}\n"); } catch { }
             return exitCode < 0 ? 0 : exitCode;
         }
 
