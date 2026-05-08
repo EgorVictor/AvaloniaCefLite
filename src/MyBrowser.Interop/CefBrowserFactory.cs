@@ -3,6 +3,7 @@ namespace MyBrowser.Interop
     using System;
     using System.IO;
     using System.Runtime.InteropServices;
+    using System.Threading;
     using MyBrowser.Interop.Internal;
     using MyBrowser.Interop.cef;
     using MyBrowser.Interop.cef.capi;
@@ -541,7 +542,22 @@ namespace MyBrowser.Interop
         {
             if (_browserHostHandle != IntPtr.Zero)
             {
+                using var closeDone = new ManualResetEvent(false);
+                EventHandler onClosing = null;
+                onClosing = (_, _) =>
+                {
+                    _client.BrowserClosing -= onClosing;
+                    try { closeDone.Set(); } catch { }
+                };
+                _client.BrowserClosing += onClosing;
+
                 CloseBrowser(true);
+
+                if (!closeDone.WaitOne(2000))
+                {
+                    _log.Warning("[CefBrowserFactory] OnBeforeClose 超时 (2s)，强制继续 shutdown");
+                }
+                _client.BrowserClosing -= onClosing;
             }
             _browserHostHandle = IntPtr.Zero;
             _initialized = false;

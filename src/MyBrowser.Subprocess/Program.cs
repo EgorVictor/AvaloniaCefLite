@@ -40,13 +40,15 @@ namespace MyBrowser.Subprocess
 
             ConfigureCefNativeSearchPath();
 
+            var isWin7Or8 = Environment.OSVersion.Version.Major < 10;
+
             var options = new CefRuntimeOptions
             {
                 RuntimePath = GetRuntimePath(),
-                DisableGpu = true,
+                DisableGpu = isWin7Or8,
                 MultiThreadedMessageLoop = true,
-                CompatibilityMode = CefCompatibilityMode.ModernWindows,
-                Win7RenderMode = CefWin7RenderMode.SafeNoGpu
+                CompatibilityMode = isWin7Or8 ? CefCompatibilityMode.Win7Compatible : CefCompatibilityMode.ModernWindows,
+                Win7RenderMode = isWin7Or8 ? CefWin7RenderMode.SafeNoGpuNoGpuProcess : CefWin7RenderMode.D3D9Performance
             };
 
             var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);

@@ -23,7 +23,7 @@ namespace MyBrowser.Demo
                 _factory = CefDispatcher.Boot(new BrowserConfig
                 {
                     CompatibilityMode = CefCompatibilityMode.Win7Compatible,
-                    Win7RenderMode = CefWin7RenderMode.SafeNoGpu,
+                    Win7RenderMode = CefWin7RenderMode.SafeNoGpuNoGpuProcess, // TODO: 诊断完成后改回 SafeNoGpu
                     InitialUrl = "about:blank",
                     BrowserSubprocessPath = Path.Combine(baseDir, "MyBrowser.Subprocess.exe"),
                     CachePath = Path.Combine(

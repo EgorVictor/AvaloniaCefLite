@@ -144,6 +144,15 @@ namespace MyBrowser.Driver.Cef109
                 _browserHandle = e.BrowserHandle;
                 _canGoBack = false;
                 _canGoForward = false;
+
+                // about:blank 首屏：浏览器已创建即视为就绪，无需等待 OnLoadEnd
+                if (IsAboutBlank(_url))
+                {
+                    _isLoading = false;
+                    _loadTimer?.Dispose();
+                    _loadTimer = null;
+                }
+
                 BrowserInitialized?.Invoke(this, EventArgs.Empty);
             };
 
@@ -227,8 +236,11 @@ namespace MyBrowser.Driver.Cef109
             _log.Information("[Cef109BrowserControl] LoadUrl: {OriginalUrl} -> {NormalizedUrl}", url, normalizedUrl);
             _url = normalizedUrl;
 
-            _loadTimer?.Dispose();
-            _loadTimer = new Timer(OnLoadTimeout, null, _loadTimeoutMs, Timeout.Infinite);
+            // about:blank 不启动加载超时，避免空转 StopLoad 走 vtable 引发崩溃
+            if (!IsAboutBlank(normalizedUrl) && _browserHandle != IntPtr.Zero)
+            {
+                StartLoadTimer();
+            }
 
             if (_windowHandle != IntPtr.Zero && _browserHandle == IntPtr.Zero)
             {
@@ -250,9 +262,31 @@ namespace MyBrowser.Driver.Cef109
             }
         }
 
+        private static bool IsAboutBlank(string url) =>
+            string.IsNullOrEmpty(url) ||
+            url.Equals("about:blank", StringComparison.OrdinalIgnoreCase) ||
+            url.Equals("about://blank", StringComparison.OrdinalIgnoreCase);
+
+        private void StartLoadTimer()
+        {
+            _loadTimer?.Dispose();
+            _loadTimer = new Timer(OnLoadTimeout, null, _loadTimeoutMs, Timeout.Infinite);
+        }
+
         private void OnLoadTimeout(object? state)
         {
             _log.Information("[Cef109BrowserControl] Load timeout, stopping navigation");
+
+            // about:blank 不调用 StopLoad（走 vtable offset 在 Win7 上可能触发 Unknown Hard Error）
+            if (IsAboutBlank(_url))
+            {
+                _log.Information("[Cef109BrowserControl] about:blank timeout ignored - skip StopLoad");
+                _isLoading = false;
+                _loadTimer?.Dispose();
+                _loadTimer = null;
+                return;
+            }
+
             Stop();
             LoadEnd?.Invoke(this, new LoadEndEventArgs { IsMainFrame = true, HttpStatusCode = -1 });
         }
@@ -335,6 +369,12 @@ namespace MyBrowser.Driver.Cef109
             _isLoading = true;
             _log.Information("[Cef109BrowserControl] CEF OnLoadStart");
             LoadStart?.Invoke(this, new LoadStartEventArgs { IsMainFrame = true });
+
+            // 在 OnLoadStart 启动超时，而非 LoadUrl 入口 —— 避免 about:blank 误触发
+            if (!IsAboutBlank(_url))
+            {
+                StartLoadTimer();
+            }
         }
 
         private void OnCefLoadEnd(int httpStatusCode)
