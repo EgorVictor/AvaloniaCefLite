@@ -68,6 +68,7 @@ namespace MyBrowser.Demo
                 _browser.SetWindowHandle(_hostHwnd);
                 _browserAttached = true;
             }
+            UpdateNativeBounds(force: true);
             return new PlatformHandle(_hostHwnd, "HWND");
         }
 
