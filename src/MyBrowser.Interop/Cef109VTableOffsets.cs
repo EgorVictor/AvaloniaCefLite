@@ -21,6 +21,10 @@ namespace MyBrowser.Interop
         public const int FrameLoadUrl = 136;
 
         // cef_browser_host_t vtable offsets
+        public const int BrowserHostSetFocus = 64;
         public const int BrowserHostGetWindowHandle = 72;
+        // CEF 109 x64: after set_zoom_level(120), was_resized(168), notify_move_or_resize_started(176)
+        public const int BrowserHostWasResized = 168;
+        public const int BrowserHostNotifyMoveOrResizeStarted = 176;
     }
 }

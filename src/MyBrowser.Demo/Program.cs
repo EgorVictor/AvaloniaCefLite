@@ -40,15 +40,7 @@ namespace MyBrowser.Demo
             WriteEarlyLog("[Program] After ConfigureCefNativeSearchPath");
 
             WriteEarlyLog("[Program] Calling CefRuntime.ExecuteMainProcess...");
-            var options = new CefRuntimeOptions
-            {
-                RuntimePath = Path.Combine(AppContext.BaseDirectory, "Runtimes", "Cef109"),
-                DisableGpu = true,
-                MultiThreadedMessageLoop = true,
-                CompatibilityMode = CefCompatibilityMode.ModernWindows,
-                Win7RenderMode = CefWin7RenderMode.SafeNoGpu
-            };
-            var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
+            var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
             WriteEarlyLog("[Program] CefRuntime.ExecuteMainProcess returned: {0}", cefExitCode);
 
             if (cefExitCode >= 0)

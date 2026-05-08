@@ -2,10 +2,10 @@
 namespace MyBrowser.Demo
 {
     using System;
+    using System.Runtime.InteropServices;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Platform;
-    using System.Runtime.InteropServices;
 
     public class CefNativeHost : NativeControlHost
     {
@@ -45,7 +45,7 @@ namespace MyBrowser.Demo
                                 _browserAttached = true;
                             }
                             ShowWindow(_hostHwnd, SW_SHOW);
-                            _browser.NotifyResized();
+                            ForceRefresh();
                         }
                     });
                 };
@@ -67,10 +67,14 @@ namespace MyBrowser.Demo
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
             _hostHwnd = CreateHostWindow(parent.Handle);
-            if (_hostHwnd != IntPtr.Zero && _browser != null && !_browserAttached)
+            if (_hostHwnd != IntPtr.Zero)
             {
-                _browser.SetWindowHandle(_hostHwnd);
-                _browserAttached = true;
+                SetWindowLongPtr(_hostHwnd, GWLP_USERDATA, (IntPtr)GCHandle.Alloc(this));
+                if (_browser != null && !_browserAttached)
+                {
+                    _browser.SetWindowHandle(_hostHwnd);
+                    _browserAttached = true;
+                }
             }
             UpdateNativeBounds(force: true);
             return new PlatformHandle(_hostHwnd, "HWND");
@@ -78,6 +82,13 @@ namespace MyBrowser.Demo
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
         {
+            if (_hostHwnd != IntPtr.Zero)
+            {
+                var gcHandle = GCHandle.FromIntPtr(GetWindowLongPtr(_hostHwnd, GWLP_USERDATA));
+                if (gcHandle.IsAllocated) gcHandle.Free();
+                SetWindowLongPtr(_hostHwnd, GWLP_USERDATA, IntPtr.Zero);
+            }
+
             if (_browser != null)
             {
                 _browser.Dispose();
@@ -173,25 +184,49 @@ namespace MyBrowser.Demo
 
         private const int WM_ERASEBKGND = 0x0014;
         private const int WM_PAINT = 0x000F;
+        private const int WM_SETFOCUS = 0x0007;
         private const int WM_DESTROY = 0x0002;
+        private const int WM_WINDOWPOSCHANGED = 0x0047;
+        private const int GWLP_USERDATA = -21;
 
         private static IntPtr HostWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             switch (msg)
             {
                 case WM_ERASEBKGND:
-                    return DefWindowProc(hWnd, msg, wParam, lParam);
+                    GetClientRect(hWnd, out RECT er);
+                    FillRect(wParam, ref er, GetStockObject(WHITE_BRUSH));
+                    return new IntPtr(1);
                 case WM_PAINT:
                     var ps = new PAINTSTRUCT();
                     BeginPaint(hWnd, ref ps);
                     FillRect(ps.hdc, ref ps.rcPaint, GetStockObject(WHITE_BRUSH));
                     EndPaint(hWnd, ref ps);
                     return IntPtr.Zero;
+                case WM_SETFOCUS:
+                    var focusHost = GetInstanceFromHwnd(hWnd);
+                    if (focusHost != null)
+                        focusHost._browser?.SetFocus();
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
+                case WM_WINDOWPOSCHANGED:
+                    var moveHost = GetInstanceFromHwnd(hWnd);
+                    if (moveHost != null)
+                        moveHost._browser?.NotifyMoveOrResizeStarted();
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
                 case WM_DESTROY:
                     return IntPtr.Zero;
                 default:
                     return DefWindowProc(hWnd, msg, wParam, lParam);
             }
+        }
+
+        private static CefNativeHost? GetInstanceFromHwnd(IntPtr hWnd)
+        {
+            var ptr = GetWindowLongPtr(hWnd, GWLP_USERDATA);
+            if (ptr == IntPtr.Zero) return null;
+            var gcHandle = GCHandle.FromIntPtr(ptr);
+            if (!gcHandle.IsAllocated) return null;
+            return gcHandle.Target as CefNativeHost;
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -227,6 +262,15 @@ namespace MyBrowser.Demo
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern ushort RegisterClassEx(ref WNDCLASSEX lpWndClass);

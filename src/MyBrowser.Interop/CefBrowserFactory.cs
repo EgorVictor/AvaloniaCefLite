@@ -439,6 +439,28 @@ namespace MyBrowser.Interop
             };
         }
 
+        public void SetFocus()
+        {
+            if (_browserHostHandle == IntPtr.Zero) return;
+            var ptr = Marshal.ReadIntPtr(_browserHostHandle, Cef109VTableOffsets.BrowserHostSetFocus);
+            if (ptr != IntPtr.Zero)
+            {
+                var setFocus = Marshal.GetDelegateForFunctionPointer<cef_browser_host_set_focus>(ptr);
+                setFocus(_browserHostHandle, 1);
+            }
+        }
+
+        public void NotifyMoveOrResizeStarted()
+        {
+            if (_browserHostHandle == IntPtr.Zero) return;
+            var ptr = Marshal.ReadIntPtr(_browserHostHandle, Cef109VTableOffsets.BrowserHostNotifyMoveOrResizeStarted);
+            if (ptr != IntPtr.Zero)
+            {
+                var notify = Marshal.GetDelegateForFunctionPointer<cef_browser_host_notify_move_or_resize_started>(ptr);
+                notify(_browserHostHandle);
+            }
+        }
+
         public void NotifyBrowserResized()
         {
             if (_browserHostHandle == IntPtr.Zero || _containerHwnd == IntPtr.Zero)

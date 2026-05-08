@@ -25,11 +25,13 @@
         </ProjectReference>
     </ItemGroup>
 
-    <!-- 开发时构建也复制 subprocess 所有文件 -->
+    <!-- 开发时构建也复制 subprocess 所有文件（支持 RID 输出目录） -->
     <Target Name="CopySubprocessExe" AfterTargets="Build">
         <PropertyGroup>
-            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\</SubprocessSourceDir>
-            <DemoOutputDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\</DemoOutputDir>
+            <SubprocessRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</SubprocessRidSuffix>
+            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\$(SubprocessRidSuffix)</SubprocessSourceDir>
+            <DemoRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</DemoRidSuffix>
+            <DemoOutputDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\$(DemoRidSuffix)</DemoOutputDir>
         </PropertyGroup>
         <ItemGroup>
             <SubprocessFiles Include="$(SubprocessSourceDir)MyBrowser.Subprocess.*" />
@@ -38,15 +40,16 @@
         </ItemGroup>
         <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(DemoOutputDir)" SkipUnchangedFiles="true" />
-        <Message Text="Subprocess files copied to output directory" Importance="high" />
+        <Message Text="Subprocess files copied to $(DemoOutputDir)" Importance="high" />
     </Target>
 
-    <!-- 发布时自动复制 CEF 资源文件到 Cef109 目录 -->
+    <!-- 发布时自动复制 CEF 资源文件 + subprocess（支持 RID） -->
     <Target Name="CopyCefResources" BeforeTargets="Publish">
         <PropertyGroup>
             <CefSourceDir>$(MSBuildThisFileDirectory)bin\$(Configuration)\net8.0\runtimes\Cef109\</CefSourceDir>
             <CefPublishDir>$(PublishDir)</CefPublishDir>
-            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\</SubprocessSourceDir>
+            <SubprocessRidSuffix Condition="'$(RuntimeIdentifier)'!=''">$(RuntimeIdentifier)\</SubprocessRidSuffix>
+            <SubprocessSourceDir>$(MSBuildThisFileDirectory)..\MyBrowser.Subprocess\bin\$(Configuration)\net8.0\$(SubprocessRidSuffix)</SubprocessSourceDir>
         </PropertyGroup>
         <ItemGroup>
             <CefFiles Include="$(CefSourceDir)**\*" />
@@ -57,6 +60,6 @@
         <Copy SourceFiles="@(CefFiles)" DestinationFiles="@(CefFiles->'$(CefPublishDir)runtimes\Cef109\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(SubprocessFiles)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(SubprocessDeps)" DestinationFolder="$(CefPublishDir)" SkipUnchangedFiles="true" />
-        <Message Text="CEF resources and subprocess copied" Importance="high" />
+        <Message Text="CEF resources and subprocess copied to $(CefPublishDir)" Importance="high" />
     </Target>
 </Project>

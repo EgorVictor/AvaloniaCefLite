@@ -305,6 +305,23 @@ namespace MyBrowser.Driver.Cef109
             }
         }
 
+        public void SetFocus()
+        {
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
+            {
+                _log.Information("[Cef109BrowserControl] SetFocus");
+                _browserFactory.SetFocus();
+            }
+        }
+
+        public void NotifyMoveOrResizeStarted()
+        {
+            if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
+            {
+                _browserFactory.NotifyMoveOrResizeStarted();
+            }
+        }
+
         public void NotifyResized()
         {
             if (_browserFactory.BrowserHostHandle != IntPtr.Zero)
@@ -381,9 +398,21 @@ namespace MyBrowser.Driver.Cef109
             PopupRequested?.Invoke(this, url);
         }
 
+        private bool _disposed;
+
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
+
             _log.Information("[Cef109BrowserControl] 已释放");
+
+            _loadTimer?.Dispose();
+            _loadTimer = null;
+
+            CefRuntime.ContextInitialized -= OnCefContextInitialized;
+
+            _browserFactory.Dispose();
             _browserHandle = IntPtr.Zero;
         }
     }

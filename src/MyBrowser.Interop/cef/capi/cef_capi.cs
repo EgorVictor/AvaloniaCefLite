@@ -72,6 +72,7 @@ namespace MyBrowser.Interop.cef.capi
 
     public unsafe delegate int cef_stringvisitor_visit(IntPtr self, cef_string_t* str);
     public unsafe delegate IntPtr cef_browser_get_host(IntPtr browser);
+    public unsafe delegate void cef_browser_host_set_focus(IntPtr host, int enable);
     public unsafe delegate void cef_browser_host_was_resized(IntPtr host);
     public unsafe delegate void cef_browser_host_notify_move_or_resize_started(IntPtr host);
     public unsafe delegate IntPtr cef_browser_host_get_window_handle(IntPtr host);

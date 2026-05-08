@@ -366,6 +366,16 @@ namespace MyBrowser
         void NotifyResized();
 
         /// <summary>
+        /// 设置焦点到浏览器
+        /// </summary>
+        void SetFocus();
+
+        /// <summary>
+        /// 通知浏览器父窗口移动/大小变化开始
+        /// </summary>
+        void NotifyMoveOrResizeStarted();
+
+        /// <summary>
         /// 执行JavaScript
         /// </summary>
         void ExecuteJavaScript(string script);

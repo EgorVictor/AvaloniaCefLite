@@ -23,6 +23,16 @@ namespace MyBrowser.Subprocess
             }
             catch { }
 
+            var hasTypeFlag = false;
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith("--type=", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasTypeFlag = true;
+                    break;
+                }
+            }
+
             ConfigureCefNativeSearchPath();
 
             var options = new CefRuntimeOptions
@@ -37,14 +47,13 @@ namespace MyBrowser.Subprocess
             var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
             try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ExecuteMainProcess returned: {exitCode}\n"); } catch { }
 
-            if (exitCode < 0)
+            if (hasTypeFlag && exitCode < 0)
             {
-                // subprocess expected >=0; -1 means CEF didn't recognize us as subprocess
-                try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: ExecuteMainProcess returned -1 (not recognized as subprocess) with --type= flag\n"); } catch { }
+                try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: --type= flag present but CEF didn't recognize as subprocess\n"); } catch { }
                 return 1;
             }
 
-            return exitCode;
+            return exitCode < 0 ? 0 : exitCode;
         }
 
         private static string GetRuntimePath()
