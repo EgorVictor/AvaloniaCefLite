@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>MyBrowser.Subprocess</RootNamespace>
     <AssemblyName>MyBrowser.Subprocess</AssemblyName>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
