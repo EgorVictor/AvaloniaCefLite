@@ -5,6 +5,7 @@ namespace MyBrowser.Demo
     using System.Runtime.InteropServices;
     using Avalonia;
     using Avalonia.Controls.ApplicationLifetimes;
+    using MyBrowser;
     using MyBrowser.Interop;
 
     class Program
@@ -39,7 +40,15 @@ namespace MyBrowser.Demo
             WriteEarlyLog("[Program] After ConfigureCefNativeSearchPath");
 
             WriteEarlyLog("[Program] Calling CefRuntime.ExecuteMainProcess...");
-            var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
+            var options = new CefRuntimeOptions
+            {
+                RuntimePath = Path.Combine(AppContext.BaseDirectory, "Runtimes", "Cef109"),
+                DisableGpu = true,
+                MultiThreadedMessageLoop = true,
+                CompatibilityMode = CefCompatibilityMode.ModernWindows,
+                Win7RenderMode = CefWin7RenderMode.SafeNoGpu
+            };
+            var cefExitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
             WriteEarlyLog("[Program] CefRuntime.ExecuteMainProcess returned: {0}", cefExitCode);
 
             if (cefExitCode >= 0)

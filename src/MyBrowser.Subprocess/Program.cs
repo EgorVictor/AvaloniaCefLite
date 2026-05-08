@@ -3,6 +3,7 @@ namespace MyBrowser.Subprocess
     using System;
     using System.IO;
     using System.Runtime.InteropServices;
+    using MyBrowser;
     using MyBrowser.Interop;
 
     internal class Program
@@ -12,11 +13,20 @@ namespace MyBrowser.Subprocess
         {
             ConfigureCefNativeSearchPath();
 
-            var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null));
+            var options = new CefRuntimeOptions
+            {
+                RuntimePath = GetRuntimePath(),
+                DisableGpu = true,
+                MultiThreadedMessageLoop = true,
+                CompatibilityMode = CefCompatibilityMode.ModernWindows,
+                Win7RenderMode = CefWin7RenderMode.SafeNoGpu
+            };
+
+            var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
             return exitCode < 0 ? 0 : exitCode;
         }
 
-        private static void ConfigureCefNativeSearchPath()
+        private static string GetRuntimePath()
         {
             var driverName = "Cef109";
             var baseDir = AppContext.BaseDirectory;
@@ -24,15 +34,25 @@ namespace MyBrowser.Subprocess
 
             if (Directory.Exists(runtimePath))
             {
-                SetDllDirectory(runtimePath);
+                return runtimePath;
             }
-            else
+
+            var altPath = Path.Combine(baseDir, "..", "..", "..", "..", "..", "src", "MyBrowser.Demo", "bin", "Debug", "net8.0", "Runtimes", driverName);
+            if (Directory.Exists(altPath))
             {
-                var altPath = Path.Combine(baseDir, "..", "..", "..", "..", "..", "src", "MyBrowser.Demo", "bin", "Debug", "net8.0", "Runtimes", driverName);
-                if (Directory.Exists(altPath))
-                {
-                    SetDllDirectory(altPath);
-                }
+                return altPath;
+            }
+
+            return string.Empty;
+        }
+
+        private static void ConfigureCefNativeSearchPath()
+        {
+            var runtimePath = GetRuntimePath();
+
+            if (!string.IsNullOrEmpty(runtimePath) && Directory.Exists(runtimePath))
+            {
+                SetDllDirectory(runtimePath);
             }
         }
 

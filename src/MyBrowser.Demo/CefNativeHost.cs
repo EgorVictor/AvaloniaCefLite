@@ -140,14 +140,14 @@ namespace MyBrowser.Demo
                 IntPtr.Zero);
         }
 
-        private static readonly bool _classRegistered = RegisterHostWindowClass();
-
         private static IntPtr _wndProcPtr;
+        private static WNDPROC? _wndProc;
+        private static bool _classRegistered = RegisterHostWindowClass();
 
         private static bool RegisterHostWindowClass()
         {
-            var wndProc = new WNDPROC(HostWndProc);
-            _wndProcPtr = Marshal.GetFunctionPointerForDelegate(wndProc);
+            _wndProc = new WNDPROC(HostWndProc);
+            _wndProcPtr = Marshal.GetFunctionPointerForDelegate(_wndProc);
 
             var wndClass = new WNDCLASSEX
             {
@@ -239,7 +239,7 @@ namespace MyBrowser.Demo
         [DllImport("user32.dll", SetLastError = true)]
         private static extern ushort RegisterClassEx(ref WNDCLASSEX lpWndClass);
 
-        [DllImport("user32.dll")]
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
         [DllImport("user32.dll")]
@@ -286,7 +286,8 @@ namespace MyBrowser.Demo
             public RECT rcPaint;
             public bool fRestore;
             public bool fIncUpdate;
-            public bool fReserved;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] rgbReserved;
         }
 
         [StructLayout(LayoutKind.Sequential)]

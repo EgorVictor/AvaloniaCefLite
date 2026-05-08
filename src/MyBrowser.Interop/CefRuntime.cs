@@ -36,8 +36,9 @@ namespace MyBrowser.Interop
         public static event EventHandler? ContextInitialized;
 
         private static bool _executeMainProcessCalled;
+        private static CefApp? _executeApp;
 
-        public static int ExecuteMainProcess(IntPtr instanceHandle)
+        public static int ExecuteMainProcess(IntPtr instanceHandle, CefRuntimeOptions? options = null)
         {
             if (_executeMainProcessCalled)
             {
@@ -46,9 +47,16 @@ namespace MyBrowser.Interop
             }
             _executeMainProcessCalled = true;
 
+            var isWin7 = options != null && options.CompatibilityMode == CefCompatibilityMode.Win7Compatible;
+            var disableGpu = options != null && options.DisableGpu;
+            var win7RenderMode = options != null ? options.Win7RenderMode : CefWin7RenderMode.SafeNoGpu;
+            var ignoreCert = options != null && options.IgnoreCertificateErrors;
+
+            _executeApp = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !disableGpu, ignoreCertificateErrors: ignoreCert, win7RenderMode: win7RenderMode);
+
             var args = new cef_main_args_t { instance = instanceHandle };
-            _log.Information("[CefRuntime] Calling cef_execute_process...");
-            var result = NativeMethods.cef_execute_process(&args, null, IntPtr.Zero);
+            _log.Information("[CefRuntime] Calling cef_execute_process with CefApp (disableGpu={DisableGpu}, win7RenderMode={Win7RenderMode})...", disableGpu, win7RenderMode);
+            var result = NativeMethods.cef_execute_process(&args, (cef_app_t*)_executeApp.Handle, IntPtr.Zero);
             _log.Information("[CefRuntime] cef_execute_process returned: {0}", result);
             return result;
         }
@@ -144,7 +152,15 @@ namespace MyBrowser.Interop
                 var logFile = Path.Combine(AppContext.BaseDirectory, "cef_debug.log");
                 SetCefString(ref settings.log_file, logFile);
 
-                _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors, win7RenderMode: options.Win7RenderMode);
+                if (_executeApp != null)
+                {
+                    _app = _executeApp;
+                    _log.Information("[CefRuntime] Reusing CefApp from ExecuteMainProcess");
+                }
+                else
+                {
+                    _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors, win7RenderMode: options.Win7RenderMode);
+                }
                 _app.ContextInitialized += (s, e) =>
                 {
                     IsContextReady = true;
