@@ -12,7 +12,7 @@ namespace MyBrowser.Demo
         private IntPtr _hostHwnd;
         private IBrowserControl? _browser;
         private bool _browserAttached;
-        private Rect _lastBounds;
+        private Size _lastSize;
 
         public IBrowserControl? Browser
         {
@@ -60,7 +60,7 @@ namespace MyBrowser.Demo
 
         public void ForceRefresh()
         {
-            _lastBounds = default;
+            _lastSize = default;
             UpdateNativeBounds(force: true);
         }
 
@@ -109,20 +109,15 @@ namespace MyBrowser.Demo
             if (_hostHwnd == IntPtr.Zero) return;
 
             var topLevel = TopLevel.GetTopLevel(this);
-            var origin = this.TranslatePoint(new Point(0, 0), topLevel);
-            if (topLevel == null || origin == null) return;
-
-            var scale = topLevel.RenderScaling;
-            var x = (int)Math.Round(origin.Value.X * scale);
-            var y = (int)Math.Round(origin.Value.Y * scale);
+            var scale = topLevel?.RenderScaling ?? 1.0;
             var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
             var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
 
-            var newBounds = new Rect(x, y, width, height);
-            if (!force && newBounds == _lastBounds) return;
-            _lastBounds = newBounds;
+            var newSize = new Size(width, height);
+            if (!force && newSize == _lastSize) return;
+            _lastSize = newSize;
 
-            SetWindowPos(_hostHwnd, IntPtr.Zero, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            SetWindowPos(_hostHwnd, IntPtr.Zero, 0, 0, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
             _browser?.NotifyResized();
         }
 
@@ -160,6 +155,7 @@ namespace MyBrowser.Demo
                 style = CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc = _wndProcPtr,
                 hInstance = GetModuleHandle(null),
+                hbrBackground = GetStockObject(WHITE_BRUSH),
                 lpszClassName = HOST_CLASS_NAME
             };
 
@@ -177,8 +173,6 @@ namespace MyBrowser.Demo
 
         private const int WM_ERASEBKGND = 0x0014;
         private const int WM_PAINT = 0x000F;
-        private const int WM_SIZE = 0x0005;
-        private const int WM_SETFOCUS = 0x0007;
         private const int WM_DESTROY = 0x0002;
 
         private static IntPtr HostWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -186,22 +180,12 @@ namespace MyBrowser.Demo
             switch (msg)
             {
                 case WM_ERASEBKGND:
-                    return new IntPtr(1);
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
                 case WM_PAINT:
                     var ps = new PAINTSTRUCT();
                     BeginPaint(hWnd, ref ps);
                     FillRect(ps.hdc, ref ps.rcPaint, GetStockObject(WHITE_BRUSH));
                     EndPaint(hWnd, ref ps);
-                    return IntPtr.Zero;
-                case WM_SIZE:
-                    if (wParam != (IntPtr)1)
-                    {
-                        var width = (short)(lParam.ToInt32() & 0xFFFF);
-                        var height = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
-                        SetWindowPos(hWnd, IntPtr.Zero, 0, 0, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
-                    }
-                    return IntPtr.Zero;
-                case WM_SETFOCUS:
                     return IntPtr.Zero;
                 case WM_DESTROY:
                     return IntPtr.Zero;

@@ -58,6 +58,14 @@ namespace MyBrowser.Interop
             _log.Information("[CefRuntime] Calling cef_execute_process with CefApp (disableGpu={DisableGpu}, win7RenderMode={Win7RenderMode})...", disableGpu, win7RenderMode);
             var result = NativeMethods.cef_execute_process(&args, (cef_app_t*)_executeApp.Handle, IntPtr.Zero);
             _log.Information("[CefRuntime] cef_execute_process returned: {0}", result);
+
+            if (result < 0)
+            {
+                // Browser process: _executeApp was created with caller's options,
+                // don't reuse - Initialize will create the real CefApp from BrowserConfig
+                _executeApp = null;
+            }
+
             return result;
         }
 
@@ -155,11 +163,12 @@ namespace MyBrowser.Interop
                 if (_executeApp != null)
                 {
                     _app = _executeApp;
-                    _log.Information("[CefRuntime] Reusing CefApp from ExecuteMainProcess");
+                    _log.Information("[CefRuntime] Reusing CefApp from ExecuteMainProcess (subprocess)");
                 }
                 else
                 {
                     _app = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !options.DisableGpu, ignoreCertificateErrors: options.IgnoreCertificateErrors, win7RenderMode: options.Win7RenderMode);
+                    _log.Information("[CefRuntime] Created fresh CefApp from BrowserConfig: hwAccel={0}, win7RenderMode={1}", !options.DisableGpu, options.Win7RenderMode);
                 }
                 _app.ContextInitialized += (s, e) =>
                 {

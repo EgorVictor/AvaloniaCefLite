@@ -446,6 +446,7 @@ namespace MyBrowser.Interop.cef.capi
         public IntPtr has_switch_with_value;
     }
 
+    public unsafe delegate int cef_command_line_get_command_line_string(IntPtr self, cef_string_t* result);
     public unsafe delegate void cef_command_line_append_switch(IntPtr self, cef_string_t* name);
     public unsafe delegate void cef_command_line_append_switch_with_value(IntPtr self, cef_string_t* name, cef_string_t* value);
     public unsafe delegate void cef_app_on_before_command_line_processing(IntPtr self, cef_string_t* process_type, cef_command_line_t* command_line);

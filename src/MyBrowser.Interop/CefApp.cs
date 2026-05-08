@@ -53,6 +53,7 @@ namespace MyBrowser.Interop
         private cef_browser_process_handler_on_context_initialized _onContextInitialized;
         private cef_browser_process_handler_on_schedule_message_pump_work _onScheduleMessagePumpWork;
         private cef_app_on_before_command_line_processing _onBeforeCommandLineProcessing;
+        private cef_browser_process_handler_on_before_child_process_launch _onBeforeChildProcessLaunch;
 
         public event EventHandler? ContextInitialized;
         public event EventHandler<long>? ScheduleMessagePumpWork;
@@ -85,6 +86,7 @@ namespace MyBrowser.Interop
             _onContextInitialized = OnContextInitialized;
             _onScheduleMessagePumpWork = OnScheduleMessagePumpWork;
             _onBeforeCommandLineProcessing = OnBeforeCommandLineProcessing;
+            _onBeforeChildProcessLaunch = OnBeforeChildProcessLaunch;
 
             // --- cef_browser_process_handler_t ---
             _browserProcessHandler = new cef_browser_process_handler_t
@@ -99,7 +101,7 @@ namespace MyBrowser.Interop
                 },
                 on_register_custom_preferences = IntPtr.Zero,
                 on_context_initialized = Marshal.GetFunctionPointerForDelegate(_onContextInitialized),
-                on_before_child_process_launch = IntPtr.Zero,
+                on_before_child_process_launch = Marshal.GetFunctionPointerForDelegate(_onBeforeChildProcessLaunch),
                 on_schedule_message_pump_work = Marshal.GetFunctionPointerForDelegate(_onScheduleMessagePumpWork),
                 get_default_client = IntPtr.Zero
             };
@@ -168,6 +170,30 @@ namespace MyBrowser.Interop
             ScheduleMessagePumpWork?.Invoke(this, delay);
         }
 
+        private unsafe void OnBeforeChildProcessLaunch(IntPtr self, IntPtr commandLine)
+        {
+            if (commandLine == IntPtr.Zero)
+            {
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch - null command line");
+                return;
+            }
+
+            var cmdLinePtr = (cef_command_line_t*)commandLine;
+            var getCmdLineStrPtr = cmdLinePtr->get_command_line_string;
+            if (getCmdLineStrPtr != IntPtr.Zero)
+            {
+                var getCmdLineStr = Marshal.GetDelegateForFunctionPointer<cef_command_line_get_command_line_string>(getCmdLineStrPtr);
+                var cefStr = new cef_string_t();
+                getCmdLineStr(commandLine, &cefStr);
+                var cmdLineText = GetCefString(&cefStr);
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
+            }
+            else
+            {
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch - no get_command_line_string function");
+            }
+        }
+
         private unsafe void OnBeforeCommandLineProcessing(IntPtr self, cef_string_t* processType, cef_command_line_t* commandLine)
         {
             var process = GetCefString(processType);
@@ -187,8 +213,6 @@ namespace MyBrowser.Interop
                         CommandLineAppendSwitch(commandLine, "disable-gpu-rasterization");
                         CommandLineAppendSwitch(commandLine, "disable-zero-copy");
                         CommandLineAppendSwitch(commandLine, "disable-gpu-watchdog");
-                        CommandLineAppendSwitch(commandLine, "disable-software-rasterizer");
-                        CommandLineAppendSwitch(commandLine, "in-process-gpu");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.SwiftShader:
@@ -196,7 +220,7 @@ namespace MyBrowser.Interop
                         CommandLineAppendSwitchWithValue(commandLine, "use-gl", "swiftshader");
                         CommandLineAppendSwitch(commandLine, "disable-webgl");
                         CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                        CommandLineAppendSwitch(commandLine, "disable-features=Vulkan");
+                        CommandLineAppendSwitchWithValue(commandLine, "disable-features", "Vulkan");
                         break;
 
                     case MyBrowser.CefWin7RenderMode.D3D9Performance:
@@ -204,7 +228,7 @@ namespace MyBrowser.Interop
                         CommandLineAppendSwitchWithValue(commandLine, "use-angle", "d3d9");
                         CommandLineAppendSwitch(commandLine, "disable-webgl");
                         CommandLineAppendSwitch(commandLine, "disable-accelerated-video-decode");
-                        CommandLineAppendSwitch(commandLine, "disable-features=Vulkan");
+                        CommandLineAppendSwitchWithValue(commandLine, "disable-features", "Vulkan");
                         break;
                 }
 
@@ -305,4 +329,5 @@ namespace MyBrowser.Interop
     public delegate IntPtr cef_app_get_browser_process_handler(IntPtr self);
     public delegate void cef_browser_process_handler_on_context_initialized(IntPtr self);
     public delegate void cef_browser_process_handler_on_schedule_message_pump_work(IntPtr self, long delay);
+    public delegate void cef_browser_process_handler_on_before_child_process_launch(IntPtr self, IntPtr commandLine);
 }

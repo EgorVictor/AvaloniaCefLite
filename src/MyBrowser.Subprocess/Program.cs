@@ -36,7 +36,15 @@ namespace MyBrowser.Subprocess
 
             var exitCode = CefRuntime.ExecuteMainProcess(GetModuleHandle(null), options);
             try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ExecuteMainProcess returned: {exitCode}\n"); } catch { }
-            return exitCode < 0 ? 0 : exitCode;
+
+            if (exitCode < 0)
+            {
+                // subprocess expected >=0; -1 means CEF didn't recognize us as subprocess
+                try { File.AppendAllText(startupLog, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: ExecuteMainProcess returned -1 (not recognized as subprocess) with --type= flag\n"); } catch { }
+                return 1;
+            }
+
+            return exitCode;
         }
 
         private static string GetRuntimePath()

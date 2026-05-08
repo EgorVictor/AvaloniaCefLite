@@ -76,7 +76,11 @@ namespace MyBrowser.Interop
                 return false;
             }
 
-            // 使用 WS_CHILD | WS_VISIBLE 样式将浏览器嵌入父窗口 (参考 CefSharp SetAsChild)
+            // Use parent's actual client size for initial bounds
+            GetClientRect(parentHwnd, out RECT parentRect);
+            var initW = Math.Max(1, parentRect.Right - parentRect.Left);
+            var initH = Math.Max(1, parentRect.Bottom - parentRect.Top);
+
             var windowInfo = new cef_window_info_t
             {
                 ex_style = 0,
@@ -86,8 +90,8 @@ namespace MyBrowser.Interop
                 {
                     x = 0,
                     y = 0,
-                    width = 1024,
-                    height = 768
+                    width = initW,
+                    height = initH
                 },
                 parent_window = parentHwnd,
                 menu = IntPtr.Zero,
