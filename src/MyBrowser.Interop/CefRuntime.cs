@@ -1,7 +1,9 @@
 namespace MyBrowser.Interop
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Runtime.InteropServices;
     using MyBrowser.Interop.cef.capi;
     using Serilog;
@@ -38,6 +40,63 @@ namespace MyBrowser.Interop
         private static bool _executeMainProcessCalled;
         private static CefApp? _executeApp;
 
+        private static void LogProcessMemory(string label)
+        {
+            try
+            {
+                using var p = Process.GetCurrentProcess();
+                p.Refresh();
+                _log.Information("[Mem] {Label}: WorkingSet={WorkingSetMB}MB PrivateMemory={PrivateMB}MB PagedMemory={PagedMB}MB VirtualMemory={VirtualMB}MB",
+                    label,
+                    p.WorkingSet64 / 1024 / 1024,
+                    p.PrivateMemorySize64 / 1024 / 1024,
+                    p.PagedMemorySize64 / 1024 / 1024,
+                    p.VirtualMemorySize64 / 1024 / 1024);
+            }
+            catch (Exception ex)
+            {
+                _log.Warning("[Mem] Failed to get process memory: {Ex}", ex.Message);
+            }
+        }
+
+        private static void LogResourceFiles(string runtimePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(runtimePath) || !Directory.Exists(runtimePath))
+                {
+                    _log.Information("[Runtime] Resources directory not found: {Path}", runtimePath);
+                    return;
+                }
+
+                var extensions = new[] { ".pak", ".bin", ".dll", ".dat" };
+                var files = Directory.GetFiles(runtimePath, "*.*", SearchOption.AllDirectories)
+                    .Where(f => extensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                    .OrderByDescending(f => new FileInfo(f).Length)
+                    .ToList();
+
+                _log.Information("[Runtime] Resource files in {Path}: {Count} files, TotalSize={TotalSize}MB",
+                    runtimePath, files.Count,
+                    files.Sum(f => new FileInfo(f).Length) / 1024 / 1024);
+
+                foreach (var file in files.Take(30))
+                {
+                    var fi = new FileInfo(file);
+                    var relPath = file[(runtimePath.Length + 1)..];
+                    _log.Information("[Runtime]   {Size,8}MB  {RelPath}", fi.Length / 1024 / 1024, relPath);
+                }
+
+                if (files.Count > 30)
+                {
+                    _log.Information("[Runtime]   ... and {Count} more files", files.Count - 30);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Warning("[Runtime] Failed to enumerate resource files: {Ex}", ex.Message);
+            }
+        }
+
         public static int ExecuteMainProcess(IntPtr instanceHandle, CefRuntimeOptions? options = null)
         {
             var os = Environment.OSVersion;
@@ -57,17 +116,21 @@ namespace MyBrowser.Interop
 
             _log.Information("[CefRuntime] ExecuteMainProcess options: isWin7={IsWin7}, disableGpu={DisableGpu}, win7RenderMode={Win7RenderMode}, ignoreCert={IgnoreCert}", isWin7, disableGpu, win7RenderMode, ignoreCert);
 
+            LogProcessMemory("Before cef_execute_process");
+
             _executeApp = new CefApp(isWin7Or8: isWin7, hardwareAcceleration: !disableGpu, ignoreCertificateErrors: ignoreCert, win7RenderMode: win7RenderMode);
 
             var args = new cef_main_args_t { instance = instanceHandle };
+            var sw = Stopwatch.StartNew();
             _log.Information("[CefRuntime] Calling cef_execute_process with CefApp (disableGpu={DisableGpu}, win7RenderMode={Win7RenderMode})...", disableGpu, win7RenderMode);
             var result = NativeMethods.cef_execute_process(&args, (cef_app_t*)_executeApp.Handle, IntPtr.Zero);
-            _log.Information("[CefRuntime] cef_execute_process returned: {0}", result);
+            sw.Stop();
+            _log.Information("[CefRuntime] cef_execute_process returned: {0}, elapsed: {Elapsed}ms", result, sw.ElapsedMilliseconds);
+
+            LogProcessMemory($"After cef_execute_process (result={result})");
 
             if (result < 0)
             {
-                // Browser process: _executeApp was created with caller's options,
-                // don't reuse - Initialize will create the real CefApp from BrowserConfig
                 _executeApp = null;
             }
 
@@ -91,6 +154,9 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] CompatibilityMode: {CompatibilityMode}", options.CompatibilityMode);
                 _log.Information("[CefRuntime] Win7RenderMode: {Win7RenderMode}", options.Win7RenderMode);
                 _log.Information("[CefRuntime] instanceHandle: {0}", (long)instanceHandle);
+
+                LogProcessMemory("Initialize START");
+                LogResourceFiles(options.RuntimePath);
 
                 var isWin7 = options.CompatibilityMode == CefCompatibilityMode.Win7Compatible;
                 var logSeverity = options.LogSeverity switch
@@ -202,20 +268,37 @@ namespace MyBrowser.Interop
                 _log.Information("[CefRuntime] settings.size = {0}", settings.size);
                 _log.Information("[CefRuntime] settings.no_sandbox = {0}", settings.no_sandbox);
                 _log.Information("[CefRuntime] settings.multi_threaded_message_loop = {0}", settings.multi_threaded_message_loop);
+                _log.Information("[CefRuntime] settings.windowless_rendering = {0}", settings.windowless_rendering_enabled);
+                _log.Information("[CefRuntime] settings.command_line_args_disabled = {0}", settings.command_line_args_disabled);
+                _log.Information("[CefRuntime] settings.pack_loading_disabled = {0}", settings.pack_loading_disabled);
+                _log.Information("[CefRuntime] settings.persist_session_cookies = {0}", settings.persist_session_cookies);
+                _log.Information("[CefRuntime] settings.persist_user_preferences = {0}", settings.persist_user_preferences);
+                _log.Information("[CefRuntime] settings.background_color = {0:X8}", settings.background_color);
                 _log.Information("[CefRuntime] settings.resources_dir = {ResourcesDir}", GetString(settings.resources_dir_path));
                 _log.Information("[CefRuntime] settings.locales_dir = {LocalesDir}", GetString(settings.locales_dir_path));
+                _log.Information("[CefRuntime] settings.cache_path = {CachePath}", GetString(settings.cache_path));
+                _log.Information("[CefRuntime] settings.browser_subprocess_path = {SubPath}", GetString(settings.browser_subprocess_path));
+                _log.Information("[CefRuntime] settings.log_file = {LogFile}", GetString(settings.log_file));
                 _log.Information("[CefRuntime] settings.log_severity = {LogSeverity}", logSeverity);
                 _log.Information("[CefRuntime] settings.remote_debugging_port = {Port}", options.RemoteDebuggingPort);
+                _log.Information("[CefRuntime] settings.uncaught_exception_stack_size = {0}", settings.uncaught_exception_stack_size);
+                _log.Information("[CefRuntime] settings.cookieable_schemes_exclude_defaults = {0}", settings.cookieable_schemes_exclude_defaults);
                 _log.Information("[CefRuntime] appPtr = {0}, args.instance = {1}", (long)appPtr, (long)args.instance);
+
+                LogProcessMemory("Before cef_initialize");
+                var sw = Stopwatch.StartNew();
                 _log.Information("[CefRuntime] >>> Calling native cef_initialize <<<");
 
                 int result = NativeMethods.cef_initialize(&args, &settings, appPtr, IntPtr.Zero);
-                _log.Information("[CefRuntime] cef_initialize returned: {0}", result);
+                sw.Stop();
+                _log.Information("[CefRuntime] cef_initialize returned: {0}, elapsed: {Elapsed}ms", result, sw.ElapsedMilliseconds);
+
+                LogProcessMemory("After cef_initialize");
 
                 if (result != 0)
                 {
                     _initialized = true;
-                    _log.Information("[CefRuntime] CEF initialized OK");
+                    _log.Information("[CefRuntime] CEF initialized OK (total init time: {Elapsed}ms)", sw.ElapsedMilliseconds);
                     return true;
                 }
 

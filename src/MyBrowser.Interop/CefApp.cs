@@ -161,8 +161,28 @@ namespace MyBrowser.Interop
 
         private void OnContextInitialized(IntPtr self)
         {
-            _log.Information("[CefApp] OnContextInitialized - CEF context is ready");
+            _log.Information("[CefApp] OnContextInitialized - CEF context is ready, childProcessCount={ChildCount}", _childProcessCount);
+            LogProcessMemory("OnContextInitialized");
             ContextInitialized?.Invoke(this, EventArgs.Empty);
+        }
+
+        private static void LogProcessMemory(string label)
+        {
+            try
+            {
+                using var p = System.Diagnostics.Process.GetCurrentProcess();
+                p.Refresh();
+                _log.Information("[Mem] {Label}: WorkingSet={WorkingSetMB}MB PrivateMemory={PrivateMB}MB PagedMemory={PagedMB}MB VirtualMemory={VirtualMB}MB",
+                    label,
+                    p.WorkingSet64 / 1024 / 1024,
+                    p.PrivateMemorySize64 / 1024 / 1024,
+                    p.PagedMemorySize64 / 1024 / 1024,
+                    p.VirtualMemorySize64 / 1024 / 1024);
+            }
+            catch (Exception ex)
+            {
+                _log.Warning("[Mem] Failed to get process memory: {Ex}", ex.Message);
+            }
         }
 
         private void OnScheduleMessagePumpWork(IntPtr self, long delay)
@@ -170,10 +190,12 @@ namespace MyBrowser.Interop
             ScheduleMessagePumpWork?.Invoke(this, delay);
         }
 
+        private static int _childProcessCount;
+
         private unsafe void OnBeforeChildProcessLaunch(IntPtr self, IntPtr commandLine)
         {
-            var childTrace = Environment.GetEnvironmentVariable("MYBROWSER_CHILD_CMD") == "1";
-            if (!childTrace) return;
+            _childProcessCount++;
+            _log.Information("[CefApp] OnBeforeChildProcessLaunch #{ChildCount}", _childProcessCount);
 
             if (commandLine == IntPtr.Zero)
             {
@@ -201,7 +223,7 @@ namespace MyBrowser.Interop
             if (strPtr->str != null && strPtr->length != UIntPtr.Zero)
             {
                 var cmdLineText = new string(strPtr->str, 0, (int)strPtr->length);
-                _log.Information("[CefApp] OnBeforeChildProcessLaunch - command line: {CommandLine}", cmdLineText);
+                _log.Information("[CefApp] OnBeforeChildProcessLaunch #{ChildCount} - command line: {CommandLine}", _childProcessCount, cmdLineText);
             }
 
             if (strPtr->dtor != IntPtr.Zero)
